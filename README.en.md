@@ -1,5 +1,7 @@
 # openXYOS
 
+**Languages:** [简体中文](README.md) · [English](README.en.md) · [Installation guide index](docs/i18n/README.md) · [Localization policy](docs/i18n/POLICY.md)
+
 Source repository: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
 
 openXYOS is a streamlined open-source human-agent organization operating system derived from XYOS. It keeps multi-level enterprise structures, multi-tenancy, modular applications, governed human-agent collaboration, agent customization, direct/group chat, and editable example modules.

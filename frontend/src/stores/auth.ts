@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { authFetch } from "../api/authFetch";
 
 interface User {
   id: number;
@@ -24,7 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
 
       login: async (email, password) => {
-        const res = await fetch("/api/auth/login", {
+        const res = await authFetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -39,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem("user", JSON.stringify(data.data.user));
         set({ user: data.data.user, token });
         // 记录登录事件
-        fetch("/api/admin/visitor-log", {
+        authFetch("/api/admin/visitor-log", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ event_type: "login", user_id: data.data.user.id, tenant_id: data.data.user.tenant_id }),
@@ -47,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       },
 
       register: async (email, password, nickname) => {
-        const res = await fetch("/api/auth/register", {
+        const res = await authFetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, nickname }),
@@ -61,7 +62,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem("user", JSON.stringify(data.data.user));
         set({ user: data.data.user, token: data.data.token });
         // 记录注册事件
-        fetch("/api/admin/visitor-log", {
+        authFetch("/api/admin/visitor-log", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ event_type: "register", user_id: data.data.user.id, tenant_id: data.data.user.tenant_id }),

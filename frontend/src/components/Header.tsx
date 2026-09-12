@@ -20,7 +20,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuthStore();
   const { dark, toggle } = useThemeStore();
   const navigate = useNavigate();
-  const { isEnglish } = useLocale();
+  const { isEnglish, t } = useLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pinned, setPinned] = useState<PinnedAnnouncement[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -52,7 +52,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
 
   return (
     <header className="flex items-center justify-between h-12 px-3 md:px-4 border-b border-border bg-bg-card shrink-0">
-      <div className="flex items-center gap-3 shrink-0"><LanguageToggle className="hidden sm:inline-flex"/>
+      <div className="flex items-center gap-3 shrink-0">
         <button onClick={handleMobileToggle}
           className="md:hidden p-1.5 rounded text-text-muted hover:text-text hover:bg-bg transition-colors"
           title={mobileOpen ? (isEnglish ? "Close menu" : "关闭菜单") : (isEnglish ? "Open menu" : "打开菜单")}>
@@ -86,7 +86,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 shrink-0"><LanguageToggle className="hidden sm:inline-flex"/>
+      <div className="flex items-center gap-3 shrink-0">
         {user && (
           <>
             <span className="hidden sm:inline text-[11px] text-text-muted truncate max-w-[80px]">{user.nickname}</span>
@@ -98,7 +98,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             </button>
             <NotificationPanel />
             <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-text-muted px-2 py-1 rounded bg-bg">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />AI 就绪
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />{t("AI 就绪", "AI ready")}
             </div>
           </>
         )}
