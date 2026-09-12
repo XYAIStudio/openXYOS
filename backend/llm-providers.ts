@@ -17,6 +17,30 @@ export const LLM_PROVIDERS = {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5-mini",
   },
+  gemini: {
+    provider: "Google",
+    name: "Gemini 2.5 Flash",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-2.5-flash",
+  },
+  mistral: {
+    provider: "Mistral AI",
+    name: "Mistral Small 4",
+    baseUrl: "https://api.mistral.ai/v1",
+    model: "mistral-small-2603",
+  },
+  claude_openrouter: {
+    provider: "Anthropic via OpenRouter",
+    name: "Claude Sonnet 4.5",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "anthropic/claude-sonnet-4.5",
+  },
+  openrouter_auto: {
+    provider: "OpenRouter",
+    name: "Auto Router",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "openrouter/auto",
+  },
   zhipu: {
     provider: "智谱 AI",
     name: "GLM-5",
