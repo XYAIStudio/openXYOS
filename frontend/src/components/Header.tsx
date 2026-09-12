@@ -87,6 +87,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
       )}
 
       <div className="flex items-center gap-3 shrink-0">
+        <LanguageToggle className="inline-flex"/>
         {user && (
           <>
             <span className="hidden sm:inline text-[11px] text-text-muted truncate max-w-[80px]">{user.nickname}</span>
