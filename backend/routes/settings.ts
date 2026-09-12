@@ -6,7 +6,9 @@ import { authenticate, requireAdmin, requireSuperAdmin, AuthRequest } from "../m
 import { LLM_PROVIDERS, type LLMProviderId } from "../llm-providers";
 
 // 数据库备份目录
-const BACKUP_DIR = path.join(__dirname, "..", "data", "backups");
+// Keep backups outside an immutable release directory in production. The default
+// preserves the local-development layout, while deployments can set BACKUP_DIR.
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, "..", "data", "backups");
 
 export const settingsRoutes = Router();
 settingsRoutes.use(authenticate);
