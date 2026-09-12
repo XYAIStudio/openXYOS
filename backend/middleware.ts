@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { localizedError } from "./utils/locale";
 import { Request, Response, NextFunction } from "express";
 import { dbGet } from "./db";
 import { getAuthProvider } from "./services/auth-provider";
@@ -27,13 +28,13 @@ export interface AuthRequest extends Request {
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, error: "未登录" });
+    return res.status(401).json({ success: false, error: localizedError(req, "未登录", "Authentication required") });
   }
 
   try {
     const result = await getAuthProvider().validateAccessToken(authHeader.slice(7));
     if (!result.success || !result.user) {
-      return res.status(401).json({ success: false, error: result.error || "登录已过期" });
+      return res.status(401).json({ success: false, error: result.error || localizedError(req, "登录已过期", "Your session has expired") });
     }
     req.user = result.user;
     runWithRequestContext(
@@ -41,7 +42,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       next,
     );
   } catch {
-    return res.status(401).json({ success: false, error: "登录已过期" });
+    return res.status(401).json({ success: false, error: localizedError(req, "登录已过期", "Your session has expired") });
   }
 }
 
@@ -51,14 +52,14 @@ export function signToken(user: AuthUser): string {
 
 export function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.user?.role !== "super_admin") {
-    return res.status(403).json({ success: false, error: "需要超级管理员权限" });
+    return res.status(403).json({ success: false, error: localizedError(req, "需要超级管理员权限", "Super administrator permission is required") });
   }
   next();
 }
 
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user?.role || !["super_admin", "admin"].includes(req.user.role)) {
-    return res.status(403).json({ success: false, error: "需要管理员权限" });
+    return res.status(403).json({ success: false, error: localizedError(req, "需要管理员权限", "Administrator permission is required") });
   }
   next();
 }

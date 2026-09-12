@@ -6,6 +6,7 @@
  */
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import { localizedError } from "./locale";
 
 /** 生成简短 traceId（8位十六进制） */
 function traceId(): string {
@@ -49,7 +50,7 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
   }
   res.status(500).json({
     success: false,
-    error: "服务器内部错误，请稍后重试或联系管理员",
+    error: localizedError(req, "服务器内部错误，请稍后重试或联系管理员", "Internal server error. Please try again later or contact an administrator."),
     traceId: tid,
   });
 }

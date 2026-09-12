@@ -20,6 +20,7 @@ export function authFetch(url: string, options: RequestInit = {}): Promise<Respo
         ...((options.headers as Record<string, string>) || {}),
       };
 
+  headers["Accept-Language"] = localStorage.getItem("openxyos.locale") === "en" ? "en" : "zh-CN";
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return fetch(fullUrl, { ...options, headers, credentials: "include" });
 }

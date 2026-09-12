@@ -7,6 +7,16 @@ import { authenticate, AuthRequest } from "../middleware";
 import { LTSProvider, getAuthProvider } from "../services/auth-provider";
 import { dbGet, dbRun } from "../db";
 import bcrypt from "bcryptjs";
+import { localizedError } from "../utils/locale";
+
+function authError(req: Parameters<typeof localizedError>[0], message: string): string {
+  const known: Record<string, string> = {
+    "邮箱或密码错误": "Invalid email or password",
+    "租户已被暂停": "This tenant is suspended",
+    "账号已被禁用": "This account is disabled",
+  };
+  return localizedError(req, message, known[message] || "Authentication failed");
+}
 
 export const authRoutes = Router();
 
@@ -14,19 +24,19 @@ export const authRoutes = Router();
 authRoutes.post("/register", async (req, res) => {
   try {
     if (process.env.ALLOW_PUBLIC_REGISTRATION !== "true") {
-      return res.status(403).json({ success: false, error: "公开注册未启用" });
+      return res.status(403).json({ success: false, error: localizedError(req, "公开注册未启用", "Public registration is disabled") });
     }
     const { email, password, nickname } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ success: false, error: "邮箱和密码必填" });
+      return res.status(400).json({ success: false, error: localizedError(req, "邮箱和密码必填", "Email and password are required") });
     }
     if (password.length < 6) {
-      return res.status(400).json({ success: false, error: "密码至少6位" });
+      return res.status(400).json({ success: false, error: localizedError(req, "密码至少6位", "Password must be at least 6 characters") });
     }
 
     const existing = dbGet("SELECT id FROM users WHERE email = ?", [email]);
     if (existing) {
-      return res.status(409).json({ success: false, error: "该邮箱已注册" });
+      return res.status(409).json({ success: false, error: localizedError(req, "该邮箱已注册", "This email is already registered") });
     }
 
     const hash = bcrypt.hashSync(password, 10);
@@ -39,7 +49,7 @@ authRoutes.post("/register", async (req, res) => {
     const provider = getAuthProvider();
     const result = await provider.authenticate({ email, password });
     if (!result.success) {
-      return res.status(500).json({ success: false, error: "注册成功但登录失败，请手动登录" });
+      return res.status(500).json({ success: false, error: localizedError(req, "注册成功但登录失败，请手动登录", "Registration succeeded, but automatic sign-in failed. Please sign in manually.") });
     }
 
     res.json({ success: true, data: { user: result.user, tokens: result.tokens } });
@@ -57,7 +67,7 @@ authRoutes.post("/login", async (req, res) => {
 
     if (!result.success) {
       const status = result.code === "TENANT_SUSPENDED" ? 403 : 401;
-      return res.status(status).json({ success: false, error: result.error });
+      return res.status(status).json({ success: false, error: authError(req, result.error || "") });
     }
 
     res.json({
@@ -84,7 +94,7 @@ authRoutes.post("/refresh", async (req, res) => {
     const result = await provider.refreshAccessToken(refreshToken);
 
     if (!result.success) {
-      return res.status(401).json({ success: false, error: result.error });
+      return res.status(401).json({ success: false, error: authError(req, result.error || "") });
     }
 
     res.json({ success: true, data: { tokens: result.tokens } });
@@ -96,7 +106,7 @@ authRoutes.post("/refresh", async (req, res) => {
 // GET /me — 当前用户信息
 authRoutes.get("/me", authenticate, (req: AuthRequest, res) => {
   const user = dbGet("SELECT id, email, nickname, role, tenant_id FROM users WHERE id = ?", [req.user!.id]);
-  if (!user) return res.status(404).json({ success: false, error: "用户不存在" });
+  if (!user) return res.status(404).json({ success: false, error: localizedError(req, "用户不存在", "User not found") });
   res.json({ success: true, data: user });
 });
 
