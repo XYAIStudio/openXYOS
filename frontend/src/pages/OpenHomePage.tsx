@@ -8,7 +8,7 @@ import "../openxyos.css";
 import HeroWaterScene from "../components/HeroWaterScene";
 import AgentJourneyDemo from "../components/AgentJourneyDemo";
 
-const GITHUB_URL = (import.meta.env.VITE_GITHUB_URL as string | undefined)?.trim();
+const GITHUB_URL = (import.meta.env.VITE_GITHUB_URL as string | undefined)?.trim() || "https://github.com/XYAIStudio/openXYOS";
 const CAPABILITIES = [
   { icon: Building2, title: "集团多层级组织", text: "集团、公司、部门、岗位与人员关系统一建模，支持复杂组织的分层协作。" },
   { icon: Layers3, title: "多租户与多模块", text: "租户数据隔离，管理员可按租户启停模块并编辑模块显示名称。" },

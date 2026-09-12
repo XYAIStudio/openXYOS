@@ -1,5 +1,7 @@
 # openXYOS
 
+Source repository: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
+
 openXYOS is a streamlined open-source human-agent organization operating system derived from XYOS. It keeps multi-level enterprise structures, multi-tenancy, modular applications, governed human-agent collaboration, agent customization, direct/group chat, and editable example modules.
 
 > Status: community release candidate for local development and evaluation. It is not represented as production-ready.

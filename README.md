@@ -1,5 +1,7 @@
 # openXYOS
 
+源码仓库：[github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
+
 openXYOS 是从 XYOS 精简而来的开源人机组织操作系统。它保留集团多层级组织、多租户、模块化、人机共融共治、智能体定制、人机单聊群聊及可二次开发示例模块，面向开发者和社区共同演进。
 
 <p align="center">
