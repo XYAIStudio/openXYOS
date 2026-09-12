@@ -5,6 +5,7 @@ openXYOS 是从 XYOS 精简而来的开源人机组织操作系统。它保留�
 <p align="center">
   <img src="frontend/public/assets/xyos-water-logo.png" width="180" alt="openXYOS 水面立体 Logo" />
 </p>
+<img width="1375" height="983" alt="image" src="https://github.com/user-attachments/assets/9217ea32-9946-4dd7-9139-0cf18a809692" />
 
 ## 首页 Hero：为组织智能化管理而生
 
