@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSkillsStore, SKILL_CATEGORIES, CATEGORY_ICONS, Skill } from "../stores/skills";
 import { authFetch } from "../api/authFetch";
+import { useLocale } from "../i18n";
 import { Search, Plus, Trash2, ToggleLeft, ToggleRight, Grid3X3, List, FolderTree, X, Download, Loader2, Package, Check, ChevronRight, ChevronDown, Puzzle, ExternalLink } from "lucide-react";
 
+const CATEGORY_EN: Record<string, string> = { "全部": "All", "电商与跨境": "Commerce & Cross-border", "营销与增长": "Marketing & Growth", "内容与创作": "Content & Creation", "开发与技术": "Development & Technology", "数据与金融": "Data & Finance", "法务与合规": "Legal & Compliance", "学术与教育": "Academia & Education", "沟通与协作": "Communication & Collaboration", "AI增强与知识": "AI & Knowledge", "生活与健康": "Lifestyle & Health", "其他": "Other", "未分类": "Uncategorized" };
+const categoryLabel = (category: string, locale: string) => locale === "en" ? (CATEGORY_EN[category] || category) : category;
+
 function SkillCardGrid({ skill }: { skill: Skill }) {
+  const { t, locale } = useLocale();
   const { selectedIds, toggleSelect, toggleEnabled, setDetailSkill } = useSkillsStore();
   const selected = selectedIds.has(skill.id);
   const enabled = skill.enabled !== 0;
@@ -21,15 +26,15 @@ function SkillCardGrid({ skill }: { skill: Skill }) {
       <div className="flex items-start justify-between mb-1.5">
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="text-lg shrink-0">{skill.icon || "📦"}</span>
-          <span className="text-sm font-semibold text-text truncate">{skill.name || "未命名"}</span>
+          <span className="text-sm font-semibold text-text truncate">{skill.name || t("未命名", "Untitled")}</span>
         </div>
         {skill.rating > 0 && <span className="text-xs text-amber-500 shrink-0 ml-1">⭐{skill.rating.toFixed(1)}</span>}
       </div>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-[11px] text-text-muted">{skill.version || "1.0.0"}</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success font-medium">{skill.category}</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success font-medium">{categoryLabel(skill.category, locale)}</span>
       </div>
-      <p className="text-xs text-text-muted leading-relaxed mb-2.5 line-clamp-2 min-h-[32px]">{skill.description || "暂无描述"}</p>
+      <p className="text-xs text-text-muted leading-relaxed mb-2.5 line-clamp-2 min-h-[32px]">{skill.description || t("暂无描述", "No description")}</p>
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2.5">
           {tags.map((t, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-bg text-text-muted border border-border">{t.trim()}</span>)}
@@ -42,15 +47,16 @@ function SkillCardGrid({ skill }: { skill: Skill }) {
         </button>
         <button onClick={(e) => { e.stopPropagation(); setDetailSkill(skill); }}
           className="text-[11px] px-2.5 py-1 rounded-md border border-border text-text-secondary hover:border-success hover:text-success transition-colors">
-          详情
+          {t("详情", "Details")}
         </button>
-        <span className="text-[10px] text-text-muted ml-auto">安装 {skill.install_count || 0}次</span>
+        <span className="text-[10px] text-text-muted ml-auto">{t("安装 ", "Installs ")}{skill.install_count || 0}</span>
       </div>
     </div>
   );
 }
 
 function SkillRowList({ skill }: { skill: Skill }) {
+  const { t, locale } = useLocale();
   const { selectedIds, toggleSelect, toggleEnabled, setDetailSkill } = useSkillsStore();
   const selected = selectedIds.has(skill.id);
   const enabled = skill.enabled !== 0;
@@ -66,10 +72,10 @@ function SkillRowList({ skill }: { skill: Skill }) {
       <div className="flex-1 min-w-0">
         <div className="text-[13px] font-semibold text-text truncate">{skill.name}</div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">{skill.category}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">{categoryLabel(skill.category, locale)}</span>
           <span className="text-[11px] text-text-muted">{skill.version || "1.0.0"}</span>
           {skill.rating > 0 && <span className="text-[11px] text-amber-500">⭐{skill.rating.toFixed(1)}</span>}
-          <span className="text-[11px] text-text-muted">安装 {skill.install_count || 0}</span>
+          <span className="text-[11px] text-text-muted">{t("安装 ", "Installs ")}{skill.install_count || 0}</span>
         </div>
       </div>
       <p className="text-[11px] text-text-muted truncate max-w-[200px] hidden md:block">{(skill.description || "").substring(0, 60)}</p>
@@ -84,6 +90,7 @@ function SkillRowList({ skill }: { skill: Skill }) {
 }
 
 function SkillGroup({ category, skills }: { category: string; skills: Skill[] }) {
+  const { locale } = useLocale();
   const { expanded, setExpanded } = useSkillsStore();
   const isOpen = expanded === category || expanded === null;
   const icon = CATEGORY_ICONS[category] || "📁";
@@ -93,7 +100,7 @@ function SkillGroup({ category, skills }: { category: string; skills: Skill[] })
       <button className="flex items-center gap-2 py-2.5 cursor-pointer select-none w-full text-left"
         onClick={() => setExpanded(isOpen ? category : null)}>
         {isOpen ? <ChevronDown size={14} className="text-text-muted" /> : <ChevronRight size={14} className="text-text-muted" />}
-        <span className="text-sm font-semibold text-text">{icon} {category}</span>
+        <span className="text-sm font-semibold text-text">{icon} {categoryLabel(category, locale)}</span>
         <span className="text-[11px] text-text-muted bg-bg px-2 py-0.5 rounded-full">{skills.length}</span>
       </button>
       {isOpen && (
@@ -106,6 +113,7 @@ function SkillGroup({ category, skills }: { category: string; skills: Skill[] })
 }
 
 function DetailPanel() {
+  const { t, locale } = useLocale();
   const { detailSkill, setDetailSkill, toggleEnabled, deleteSkill } = useSkillsStore();
   if (!detailSkill) return null;
   const s = detailSkill;
@@ -131,24 +139,24 @@ function DetailPanel() {
         </div>
         <div className="px-6 py-5 space-y-5">
           <div className="flex gap-4 flex-wrap">
-            <span className="text-xs text-text-muted">⭐ {s.rating > 0 ? s.rating.toFixed(1) : "暂无评分"}</span>
-            <span className="text-xs text-text-muted">📥 安装 {s.install_count || 0} 次</span>
-            <span className="text-xs text-text-muted">📁 {s.file_size ? `${(s.file_size / 1024).toFixed(1)}KB` : "未知大小"}</span>
+            <span className="text-xs text-text-muted">⭐ {s.rating > 0 ? s.rating.toFixed(1) : t("暂无评分", "No ratings")}</span>
+            <span className="text-xs text-text-muted">📥 {t("安装 ", "Installs ")}{s.install_count || 0}</span>
+            <span className="text-xs text-text-muted">📁 {s.file_size ? `${(s.file_size / 1024).toFixed(1)}KB` : t("未知大小", "Unknown size")}</span>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => toggleEnabled(s.id)}
               className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg transition-colors ${s.enabled ? "bg-success/10 text-success border border-success/20" : "bg-bg text-text-muted border border-border"}`}>
               {s.enabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-              {s.enabled ? "已启用" : "已禁用"}
+              {s.enabled ? t("已启用", "Enabled") : t("已禁用", "Disabled")}
             </button>
           </div>
           <div>
-            <h4 className="text-[13px] font-semibold text-text mb-2">描述</h4>
-            <p className="text-[13px] text-text-secondary leading-relaxed">{s.description || "暂无描述"}</p>
+            <h4 className="text-[13px] font-semibold text-text mb-2">{t("描述", "Description")}</h4>
+            <p className="text-[13px] text-text-secondary leading-relaxed">{s.description || t("暂无描述", "No description")}</p>
           </div>
           {tags.length > 0 && (
             <div>
-              <h4 className="text-[13px] font-semibold text-text mb-2">标签</h4>
+              <h4 className="text-[13px] font-semibold text-text mb-2">{t("标签", "Tags")}</h4>
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((t, i) => <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-bg text-text-secondary">{t.trim()}</span>)}
               </div>
@@ -156,16 +164,16 @@ function DetailPanel() {
           )}
           {s.content && (
             <div>
-              <h4 className="text-[13px] font-semibold text-text mb-2">技能内容</h4>
+              <h4 className="text-[13px] font-semibold text-text mb-2">{t("技能内容", "Skill content")}</h4>
               <pre className="bg-bg border border-border rounded-lg p-3 text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap break-all max-h-[300px] overflow-y-auto font-mono text-text-secondary">
                 {s.content}
               </pre>
             </div>
           )}
           <div className="pt-5 border-t border-border">
-            <button onClick={async () => { if (!confirm("确认删除此技能？")) return; await deleteSkill(s.id); setDetailSkill(null); }}
+            <button onClick={async () => { if (!confirm(t("确认删除此技能？", "Delete this skill?"))) return; await deleteSkill(s.id); setDetailSkill(null); }}
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-danger/20 text-danger hover:bg-danger/10 transition-colors">
-              <Trash2 size={12} /> 删除技能
+              <Trash2 size={12} /> {t("删除技能", "Delete skill")}
             </button>
           </div>
         </div>
@@ -175,6 +183,7 @@ function DetailPanel() {
 }
 
 function ImportModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLocale();
   const { importSkill } = useSkillsStore();
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -185,7 +194,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     const ok = await importSkill(content.trim());
     setSubmitting(false);
     if (ok) onClose();
-    else alert("导入失败，请检查内容格式");
+    else alert(t("导入失败，请检查内容格式", "Import failed. Check the content format."));
   };
 
   return (
@@ -193,20 +202,20 @@ function ImportModal({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} />
       <div className="fixed z-[60] bg-bg-card border border-border rounded-2xl w-[540px] max-w-[92vw] max-h-[85vh] overflow-y-auto shadow-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <div className="flex items-center justify-between px-6 pt-5">
-          <h3 className="text-base font-semibold text-text">📥 导入技能</h3>
+          <h3 className="text-base font-semibold text-text">📥 {t("导入技能", "Import skill")}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:bg-bg"><X size={16} /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <textarea value={content} onChange={(e) => setContent(e.target.value)}
-            placeholder="在此粘贴 SKILL.md 文件内容..."
+            placeholder={t("在此粘贴 SKILL.md 文件内容...", "Paste SKILL.md content here...")}
             rows={10}
             className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary resize-y min-h-[120px] font-mono" />
         </div>
         <div className="px-6 pb-5 flex justify-end gap-2.5">
-          <button onClick={onClose} className="px-4 py-2 text-[13px] rounded-lg border border-border text-text-secondary hover:bg-bg transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-[13px] rounded-lg border border-border text-text-secondary hover:bg-bg transition-colors">{t("取消", "Cancel")}</button>
           <button onClick={handleImport} disabled={!content.trim() || submitting}
             className="px-4 py-2 text-[13px] font-semibold rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5">
-            {submitting && <Loader2 size={14} className="animate-spin" />} 📥 确认导入
+            {submitting && <Loader2 size={14} className="animate-spin" />} 📥 {t("确认导入", "Confirm import")}
           </button>
         </div>
       </div>
@@ -215,6 +224,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 }
 
 function NewSkillModal({ onClose }: { onClose: () => void }) {
+  const { t, locale } = useLocale();
   const { createSkill } = useSkillsStore();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -229,7 +239,7 @@ function NewSkillModal({ onClose }: { onClose: () => void }) {
     const ok = await createSkill({ name: name.trim(), category, description, tags, content });
     setSubmitting(false);
     if (ok) onClose();
-    else alert("创建失败");
+    else alert(t("创建失败", "Creation failed"));
   };
 
   return (
@@ -237,39 +247,39 @@ function NewSkillModal({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} />
       <div className="fixed z-[60] bg-bg-card border border-border rounded-2xl w-[540px] max-w-[92vw] max-h-[85vh] overflow-y-auto shadow-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <div className="flex items-center justify-between px-6 pt-5">
-          <h3 className="text-base font-semibold text-text">➕ 新建技能</h3>
+          <h3 className="text-base font-semibold text-text">➕ {t("新建技能", "New skill")}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:bg-bg"><X size={16} /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1.5 block">技能名称 *</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="如：数据分析引擎" className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
+            <label className="text-xs font-medium text-text-muted mb-1.5 block">{t("技能名称 *", "Skill name *")}</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder={t("如：数据分析引擎", "e.g. Data Analytics Engine")} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1.5 block">分类 *</label>
+            <label className="text-xs font-medium text-text-muted mb-1.5 block">{t("分类 *", "Category *")}</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary">
-              <option value="">请选择分类</option>
-              {SKILL_CATEGORIES.filter(c => c !== "全部").map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="">{t("请选择分类", "Select a category")}</option>
+              {SKILL_CATEGORIES.filter(c => c !== "全部").map(c => <option key={c} value={c}>{categoryLabel(c, locale)}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1.5 block">简短描述</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="一句话描述此技能的功能..." className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
+            <label className="text-xs font-medium text-text-muted mb-1.5 block">{t("简短描述", "Short description")}</label>
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder={t("一句话描述此技能的功能...", "Describe what this skill does in one sentence...")} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1.5 block">标签（逗号分隔）</label>
-            <input value={tags} onChange={e => setTags(e.target.value)} placeholder="如：数据分析,可视化,报表" className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
+            <label className="text-xs font-medium text-text-muted mb-1.5 block">{t("标签（逗号分隔）", "Tags (comma-separated)")}</label>
+            <input value={tags} onChange={e => setTags(e.target.value)} placeholder={t("如：数据分析,可视化,报表", "e.g. data analytics, visualization, reporting")} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1.5 block">完整技能内容 (Markdown)</label>
-            <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="粘贴完整的技能定义内容（SKILL.md 格式）..." rows={8} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary resize-y min-h-[100px] font-mono" />
+            <label className="text-xs font-medium text-text-muted mb-1.5 block">{t("完整技能内容 (Markdown)", "Complete skill content (Markdown)")}</label>
+            <textarea value={content} onChange={e => setContent(e.target.value)} placeholder={t("粘贴完整的技能定义内容（SKILL.md 格式）...", "Paste the complete skill definition (SKILL.md format)...")} rows={8} className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary resize-y min-h-[100px] font-mono" />
           </div>
         </div>
         <div className="px-6 pb-5 flex justify-end gap-2.5">
-          <button onClick={onClose} className="px-4 py-2 text-[13px] rounded-lg border border-border text-text-secondary hover:bg-bg transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-[13px] rounded-lg border border-border text-text-secondary hover:bg-bg transition-colors">{t("取消", "Cancel")}</button>
           <button onClick={handleCreate} disabled={!name.trim() || !category || submitting}
             className="px-4 py-2 text-[13px] font-semibold rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5">
-            {submitting && <Loader2 size={14} className="animate-spin" />} ✅ 创建技能
+            {submitting && <Loader2 size={14} className="animate-spin" />} ✅ {t("创建技能", "Create skill")}
           </button>
         </div>
       </div>
@@ -278,6 +288,7 @@ function NewSkillModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function SkillsPage() {
+  const { t, locale } = useLocale();
   const {
     skills, stats, category, search, viewMode, activeTab, selectedIds,
     loading, marketplaceTotalPages,
@@ -323,15 +334,15 @@ export default function SkillsPage() {
     <div className="flex flex-col h-full bg-bg">
       <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-card">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-text flex items-center gap-2"><Package size={20} /> 技能插件</h1>
+          <h1 className="text-lg font-bold text-text flex items-center gap-2"><Package size={20} /> {t("技能插件", "Skills & Plugins")}</h1>
           <div className="inline-flex bg-bg border border-border rounded-lg p-0.5 ml-2">
             <button onClick={() => setMainTab("skills")}
               className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${mainTab === "skills" ? "bg-primary text-white" : "text-text-muted hover:bg-bg"}`}>
-              📦 技能市场
+              📦 {t("技能市场", "Skill marketplace")}
             </button>
             <button onClick={() => setMainTab("plugins")}
               className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${mainTab === "plugins" ? "bg-primary text-white" : "text-text-muted hover:bg-bg"}`}>
-              🧩 插件中心
+              🧩 {t("插件中心", "Plugin center")}
             </button>
           </div>
         </div>
@@ -339,14 +350,14 @@ export default function SkillsPage() {
           <div className="flex items-center bg-bg border border-border rounded-lg px-3 py-1.5 focus-within:border-primary transition-colors">
             <Search size={14} className="text-text-muted mr-1.5" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="搜索技能名称、描述、标签..."
+              placeholder={t("搜索技能名称、描述、标签...", "Search skills, descriptions, or tags...")}
               className="text-[13px] outline-none w-48 bg-transparent text-text placeholder:text-text-muted" />
           </div>
           <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:bg-bg transition-colors">
-            <Download size={14} /> 导入
+            <Download size={14} /> {t("导入", "Import")}
           </button>
           <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg bg-primary text-white hover:opacity-90 transition-colors font-semibold">
-            <Plus size={14} /> 新建
+            <Plus size={14} /> {t("新建", "New")}
           </button>
         </div>
       </div>
@@ -355,11 +366,11 @@ export default function SkillsPage() {
         {mainTab === "skills" && (<>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
           {[
-            { icon: "📦", val: stats.total || skills.length, label: "总计" },
-            { icon: "✅", val: stats.enabled || 0, label: "已启用" },
-            { icon: "⏸️", val: stats.disabled || 0, label: "已禁用" },
-            { icon: "📂", val: Object.keys(stats.categories || {}).length || 0, label: "分类" },
-            { icon: "🆕", val: stats.recentInstalled || 0, label: "员工已学" },
+            { icon: "📦", val: stats.total || skills.length, label: t("总计", "Total") },
+            { icon: "✅", val: stats.enabled || 0, label: t("已启用", "Enabled") },
+            { icon: "⏸️", val: stats.disabled || 0, label: t("已禁用", "Disabled") },
+            { icon: "📂", val: Object.keys(stats.categories || {}).length || 0, label: t("分类", "Categories") },
+            { icon: "🆕", val: stats.recentInstalled || 0, label: t("员工已学", "Employee learning") },
           ].map((s, i) => (
             <div key={i} className="bg-bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-3">
               <span className="text-2xl">{s.icon}</span>
@@ -375,19 +386,19 @@ export default function SkillsPage() {
           <div className="inline-flex bg-bg-card border border-border rounded-lg p-0.5">
             <button onClick={() => setActiveTab("installed")}
               className={`px-5 py-2 text-[13px] font-medium rounded-md transition-colors ${activeTab === "installed" ? "bg-primary text-white" : "text-text-muted hover:bg-bg"}`}>
-              📋 已安装
+              📋 {t("已安装", "Installed")}
             </button>
             <button onClick={() => setActiveTab("marketplace")}
               className={`px-5 py-2 text-[13px] font-medium rounded-md transition-colors ${activeTab === "marketplace" ? "bg-primary text-white" : "text-text-muted hover:bg-bg"}`}>
-              🏪 技能市场
+              🏪 {t("技能市场", "Skill marketplace")}
             </button>
           </div>
           {activeTab === "installed" && (
             <div className="inline-flex bg-bg-card border border-border rounded-lg overflow-hidden">
               {([
-                { mode: "grid" as const, icon: <Grid3X3 size={14} />, title: "网格" },
-                { mode: "list" as const, icon: <List size={14} />, title: "列表" },
-                { mode: "group" as const, icon: <FolderTree size={14} />, title: "分组" },
+                { mode: "grid" as const, icon: <Grid3X3 size={14} />, title: t("网格", "Grid") },
+                { mode: "list" as const, icon: <List size={14} />, title: t("列表", "List") },
+                { mode: "group" as const, icon: <FolderTree size={14} />, title: t("分组", "Grouped") },
               ]).map(v => (
                 <button key={v.mode} onClick={() => setViewMode(v.mode)} title={v.title}
                   className={`p-2 transition-colors ${viewMode === v.mode ? "bg-primary text-white" : "text-text-muted hover:bg-bg"}`}>
@@ -406,7 +417,7 @@ export default function SkillsPage() {
               return (
                 <button key={c} onClick={() => setCategory(c)}
                   className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-colors shrink-0 ${category === c ? "bg-primary text-white border-primary" : "bg-bg-card text-text-muted border-border hover:border-primary hover:text-primary"}`}>
-                  {CATEGORY_ICONS[c] || "📁"} {c}
+                  {CATEGORY_ICONS[c] || "📁"} {categoryLabel(c, locale)}
                   <span className="ml-1 text-[10px] opacity-70">{cnt}</span>
                 </button>
               );
@@ -416,25 +427,25 @@ export default function SkillsPage() {
 
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-3 px-4 py-2.5 bg-success/10 rounded-xl mb-3.5 text-[13px] text-success">
-            <span>已选择 <strong>{selectedIds.size}</strong> 个技能</span>
-            <button onClick={() => batchToggle(true)} className="text-[12px] px-3 py-1 rounded-md border border-success bg-white hover:bg-success hover:text-white transition-colors">✅ 批量启用</button>
-            <button onClick={() => batchToggle(false)} className="text-[12px] px-3 py-1 rounded-md border border-success bg-white hover:bg-success hover:text-white transition-colors">⏸️ 批量禁用</button>
-            <button onClick={batchDelete} className="text-[12px] px-3 py-1 rounded-md border border-danger bg-white text-danger hover:bg-danger hover:text-white transition-colors">🗑️ 批量删除</button>
-            <button onClick={clearSelection} className="ml-auto text-[12px] px-3 py-1 rounded-md border border-text-muted text-text-muted hover:bg-bg transition-colors">取消选择</button>
+            <span>{t("已选择 ", "Selected ")}<strong>{selectedIds.size}</strong>{t(" 个技能", " skills")}</span>
+            <button onClick={() => batchToggle(true)} className="text-[12px] px-3 py-1 rounded-md border border-success bg-white hover:bg-success hover:text-white transition-colors">✅ {t("批量启用", "Enable selected")}</button>
+            <button onClick={() => batchToggle(false)} className="text-[12px] px-3 py-1 rounded-md border border-success bg-white hover:bg-success hover:text-white transition-colors">⏸️ {t("批量禁用", "Disable selected")}</button>
+            <button onClick={batchDelete} className="text-[12px] px-3 py-1 rounded-md border border-danger bg-white text-danger hover:bg-danger hover:text-white transition-colors">🗑️ {t("批量删除", "Delete selected")}</button>
+            <button onClick={clearSelection} className="ml-auto text-[12px] px-3 py-1 rounded-md border border-text-muted text-text-muted hover:bg-bg transition-colors">{t("取消选择", "Clear selection")}</button>
           </div>
         )}
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <span className="ml-2 text-sm text-text-muted">加载中...</span>
+            <span className="ml-2 text-sm text-text-muted">{t("加载中...", "Loading...")}</span>
           </div>
         ) : filteredSkills.length === 0 ? (
           <div className="text-center py-16 text-text-muted">
             <div className="text-5xl mb-4 opacity-40">🧩</div>
-            <p className="text-[15px] mb-4">没有找到匹配的技能</p>
+            <p className="text-[15px] mb-4">{t("没有找到匹配的技能", "No matching skills found")}</p>
             <button onClick={() => setActiveTab("marketplace")} className="px-4 py-2 bg-primary text-white text-[13px] font-semibold rounded-lg hover:opacity-90 transition-colors">
-              去技能市场看看 →
+              {t("去技能市场看看 →", "Browse the skill marketplace →")}
             </button>
           </div>
         ) : activeTab === "marketplace" ? (
@@ -480,6 +491,7 @@ export default function SkillsPage() {
 
 // ===== 插件中心 =====
 function PluginCenter() {
+  const { t, locale } = useLocale();
   const [plugins, setPlugins] = useState<any[]>([]);
   const [installedIds, setInstalledIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -550,10 +562,9 @@ function PluginCenter() {
     });
   }
 
-  async function handlePayConfirm() {
+  function handlePayConfirm() {
     if (!payPlugin) return;
-    // 模拟付费成功
-    await doInstall(payPlugin.id);
+    alert(t("商业插件需通过正式采购或授权流程开通，当前演示站不会模拟支付或自动安装。", "Commercial plugins require formal procurement or authorization. This demo site does not simulate payment or auto-installation."));
     setPayPlugin(null);
   }
 
@@ -566,10 +577,10 @@ function PluginCenter() {
   return (
     <div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        {[{ icon: "🧩", val: stats.total, label: "插件总数" },
-          { icon: "📂", val: (stats.byCategory || []).length, label: "分类数" },
-          { icon: "🆓", val: "多数免费", label: "即装即用" },
-          { icon: "🔌", val: "API集成", label: "开放生态" },
+        {[{ icon: "🧩", val: stats.total, label: t("插件总数", "Total plugins") },
+          { icon: "📂", val: (stats.byCategory || []).length, label: t("分类数", "Categories") },
+          { icon: "🆓", val: t("多数免费", "Mostly free"), label: t("即装即用", "Ready to install") },
+          { icon: "🔌", val: "API", label: t("开放生态", "Open ecosystem") },
         ].map((s, i) => (
           <div key={i} className="bg-bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-3">
             <span className="text-2xl">{s.icon}</span><div><div className="text-xl font-bold text-text">{s.val}</div><div className="text-[11px] text-text-muted">{s.label}</div></div>
@@ -579,17 +590,17 @@ function PluginCenter() {
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input type="text" placeholder="搜索插件..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder={t("搜索插件...", "Search plugins...")} value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-bg-card border border-border rounded-lg text-xs focus:outline-none focus:border-primary" />
         </div>
         <select value={sort} onChange={e => setSort(e.target.value)} className="px-3 py-2 bg-bg-card border border-border rounded-lg text-xs">
-          <option value="popular">最受欢迎</option><option value="rating">评分最高</option><option value="newest">最新上架</option>
+          <option value="popular">{t("最受欢迎", "Most popular")}</option><option value="rating">{t("评分最高", "Top rated")}</option><option value="newest">{t("最新上架", "Newest")}</option>
         </select>
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4">
         {categories.map(c => (
           <button key={c} onClick={() => setCat(c)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium border transition-colors shrink-0 ${cat === c ? "bg-primary text-white border-primary" : "bg-bg-card text-text-muted border-border hover:border-primary hover:text-primary"}`}>{c}</button>
+            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium border transition-colors shrink-0 ${cat === c ? "bg-primary text-white border-primary" : "bg-bg-card text-text-muted border-border hover:border-primary hover:text-primary"}`}>{categoryLabel(c, locale)}</button>
         ))}
       </div>
       {loading ? (
@@ -599,7 +610,7 @@ function PluginCenter() {
           {filtered.map((p: any) => {
             const isInstalled = installedIds.has(p.id);
             const isInstalling = installing.has(p.id);
-            const isFree = p.price === "免费" || p.price === "免费额度";
+            const isFree = p.price === "免费" || p.price === "免费额度" || p.price === "free" || p.price === "free tier";
 
             return (
             <div key={p.id} className="bg-bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all">
@@ -613,7 +624,7 @@ function PluginCenter() {
                   </div>
                 </div>
                 {isFree ? (
-                  <span className="text-[10px] px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-medium">免费</span>
+                  <span className="text-[10px] px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-medium">{t("免费", "Free")}</span>
                 ) : (
                   <span className="text-[10px] px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium">{p.price}</span>
                 )}
@@ -629,18 +640,18 @@ function PluginCenter() {
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <div className="flex items-center gap-1 text-[10px] text-text-muted">
                   <span>⭐{p.rating?.toFixed(1) || "0"}</span><span className="mx-1">·</span>
-                  <span>安装 {p.install_count || 0}次</span>
+                  <span>{t("安装 ", "Installs ")}{p.install_count || 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-text-muted">{p.author}</span>
                   {isInstalled ? (
-                    <span className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium border border-green-200">✓ 已安装</span>
+                    <span className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium border border-green-200">✓ {t("已安装", "Installed")}</span>
                   ) : isInstalling ? (
-                    <span className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium">安装中...</span>
+                    <span className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium">{t("安装中...", "Installing...")}</span>
                   ) : (
                     <button onClick={() => handleInstall(p)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isFree ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"}`}>
-                      {isFree ? "安装" : `${p.price} 购买`}
+                      {isFree ? t("安装", "Install") : t("商业版", "Commercial")}
                     </button>
                   )}
                 </div>
@@ -661,16 +672,16 @@ function PluginCenter() {
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
               <p className="text-2xl font-bold text-amber-700">{payPlugin.price}</p>
-              <p className="text-xs text-amber-600 mt-1">按月订阅 · 随时可取消</p>
+              <p className="text-xs text-amber-600 mt-1">{t("按月订阅 · 随时可取消", "Monthly subscription · cancel anytime")}</p>
             </div>
             <div className="text-xs text-text-muted mb-4 space-y-1">
-              <p>✓ 全功能使用权限</p>
-              <p>✓ 持续版本更新</p>
-              <p>✓ 技术支持服务</p>
+              <p>✓ {t("全功能使用权限", "Full feature access")}</p>
+              <p>✓ {t("持续版本更新", "Continuous updates")}</p>
+              <p>✓ {t("技术支持服务", "Technical support")}</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setPayPlugin(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm hover:bg-bg">取消</button>
-              <button onClick={handlePayConfirm} className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90">确认支付</button>
+              <button onClick={() => setPayPlugin(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm hover:bg-bg">{t("取消", "Cancel")}</button>
+              <button onClick={handlePayConfirm} className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90">{t("确认支付", "Confirm purchase")}</button>
             </div>
           </div>
         </div>
