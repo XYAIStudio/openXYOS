@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ListTodo, Plus, RefreshCw, Search, Filter, ChevronDown, Bot, MessageSquare, Paperclip, CheckCircle } from "lucide-react";
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
+import { useLocale } from "../i18n";
 
 interface Task {
   id: number; title: string; status: string; priority: string;
@@ -10,15 +11,9 @@ interface Task {
   created_at: string; subtask_count?: number; subtask_done?: number; comment_count?: number;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  todo: "待办", in_progress: "进行中", review: "评审中", done: "已完成",
-};
 const STATUS_COLORS: Record<string, string> = {
   todo: "bg-info/10 text-info", in_progress: "bg-warning/10 text-warning",
   review: "bg-accent/10 text-accent", done: "bg-success/10 text-success",
-};
-const PRIORITY_LABELS: Record<string, string> = {
-  critical: "紧急", high: "高", medium: "中", low: "低",
 };
 const PRIORITY_COLORS: Record<string, string> = {
   critical: "text-danger", high: "text-warning", medium: "text-info", low: "text-text-muted",
@@ -26,6 +21,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export default function TasksPage() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -80,32 +76,33 @@ export default function TasksPage() {
     fetchTasks();
   };
 
+  const statusLabel = (status: string) => ({ todo: t("待办", "To do"), in_progress: t("进行中", "In progress"), review: t("评审中", "In review"), done: t("已完成", "Done") }[status] || status);
   const statusFilters = [
-    { value: "all", label: "全部", count: stats?.total || 0 },
-    { value: "todo", label: "待办", count: stats?.todo || 0 },
-    { value: "in_progress", label: "进行中", count: stats?.in_progress || 0 },
-    { value: "review", label: "评审中", count: stats?.review || 0 },
-    { value: "done", label: "已完成", count: stats?.done || 0 },
+    { value: "all", label: t("全部", "All"), count: stats?.total || 0 },
+    { value: "todo", label: t("待办", "To do"), count: stats?.todo || 0 },
+    { value: "in_progress", label: t("进行中", "In progress"), count: stats?.in_progress || 0 },
+    { value: "review", label: t("评审中", "In review"), count: stats?.review || 0 },
+    { value: "done", label: t("已完成", "Done"), count: stats?.done || 0 },
   ];
 
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-bg-card">
         <div>
-          <h1 className="text-lg font-bold text-text">任务管理</h1>
+          <h1 className="text-lg font-bold text-text">{t("任务管理", "Task management")}</h1>
           {stats && (
             <p className="text-xs text-text-muted mt-0.5">
-              共 {stats.total || 0} 个任务 · {(stats.in_progress || 0)} 进行中 · {(stats.done || 0)} 已完成
+              {t("总计 " + (stats.total || 0) + " 个任务 · " + (stats.in_progress || 0) + " 进行中 · " + (stats.done || 0) + " 已完成", (stats.total || 0) + " total · " + (stats.in_progress || 0) + " in progress · " + (stats.done || 0) + " done")}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={fetchTasks} className="p-2 rounded-md hover:bg-bg-card text-text-muted" title="刷新">
+          <button onClick={fetchTasks} className="p-2 rounded-md hover:bg-bg-card text-text-muted" title={t("刷新", "Refresh")}>
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90">
-            <Plus size={16} /> 创建任务
+            <Plus size={16} /> {t("创建任务", "Create task")}
           </button>
         </div>
       </div>
@@ -118,7 +115,7 @@ export default function TasksPage() {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="搜索任务..."
+              placeholder={t("搜索任务...", "Search tasks...")}
               className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary"
             />
           </div>
@@ -129,7 +126,7 @@ export default function TasksPage() {
             }`}
           >
             <Filter size={14} />
-            筛选
+            {t("筛选", "Filter")}
             <ChevronDown size={12} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
           </button>
         </div>
@@ -137,7 +134,7 @@ export default function TasksPage() {
         {showFilters && (
           <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-text-muted">状态:</span>
+              <span className="text-xs text-text-muted">{t("状态:", "Status:")}</span>
               <div className="flex gap-1">
                 {statusFilters.map(f => (
                   <button
@@ -155,17 +152,17 @@ export default function TasksPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-text-muted">优先级:</span>
+              <span className="text-xs text-text-muted">{t("优先级:", "Priority:")}</span>
               <select
                 value={filterPriority}
                 onChange={e => setFilterPriority(e.target.value)}
                 className="px-2.5 py-1 border border-border rounded-md text-xs outline-none focus:border-primary"
               >
-                <option value="">全部</option>
-                <option value="critical">紧急</option>
-                <option value="high">高</option>
-                <option value="medium">中</option>
-                <option value="low">低</option>
+                <option value="">{t("全部", "All")}</option>
+                <option value="critical">{t("紧急", "Critical")}</option>
+                <option value="high">{t("高", "High")}</option>
+                <option value="medium">{t("中", "Medium")}</option>
+                <option value="low">{t("低", "Low")}</option>
               </select>
             </div>
           </div>
@@ -175,12 +172,12 @@ export default function TasksPage() {
       <div className="flex-1 overflow-auto p-6">
         {loading ? (
           <div className="flex items-center justify-center h-32 text-text-muted">
-            <RefreshCw size={20} className="animate-spin mr-2" /> 加载中...
+            <RefreshCw size={20} className="animate-spin mr-2" /> {t("加载中...", "Loading...")}
           </div>
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-text-muted">
             <ListTodo size={48} className="mb-3 opacity-30" />
-            <p className="text-sm">暂无任务</p>
+            <p className="text-sm">{t("暂无任务", "No tasks yet")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -191,7 +188,7 @@ export default function TasksPage() {
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-bg-card border border-transparent hover:border-border transition-all cursor-pointer group"
               >
                 <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[task.status]}`}>
-                  {STATUS_LABELS[task.status]}
+                  {statusLabel(task.status)}
                 </span>
                 <span className={`text-[10px] font-bold ${PRIORITY_COLORS[task.priority]}`}>
                   {task.priority === "critical" ? "!!" : task.priority === "high" ? "!" : ""}
@@ -224,25 +221,19 @@ export default function TasksPage() {
                     <button
                       onClick={e => { e.stopPropagation(); handleTransition(task.id, "in_progress"); }}
                       className="text-[10px] px-2 py-1 bg-warning/10 text-warning rounded hover:opacity-80"
-                    >
-                      执行
-                    </button>
+                    >{t("执行", "Start")}</button>
                   )}
                   {task.status === "in_progress" && (
                     <button
                       onClick={e => { e.stopPropagation(); handleTransition(task.id, "review"); }}
                       className="text-[10px] px-2 py-1 bg-accent/10 text-accent rounded hover:opacity-80"
-                    >
-                      提交
-                    </button>
+                    >{t("提交", "Submit")}</button>
                   )}
                   {task.status === "review" && (
                     <button
                       onClick={e => { e.stopPropagation(); handleTransition(task.id, "done"); }}
                       className="text-[10px] px-2 py-1 bg-success/10 text-success rounded hover:opacity-80"
-                    >
-                      通过
-                    </button>
+                    >{t("通过", "Approve")}</button>
                   )}
                 </div>
               </div>
@@ -254,52 +245,50 @@ export default function TasksPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowCreate(false)}>
           <div className="bg-bg-card rounded-xl shadow-xl p-6 w-[500px]" onClick={e => e.stopPropagation()}>
-            <h2 className="text-base font-bold mb-4">创建新任务</h2>
+            <h2 className="text-base font-bold mb-4">{t("创建新任务", "Create a task")}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1.5">任务标题</label>
+                <label className="block text-sm font-medium text-text mb-1.5">{t("任务标题", "Task title")}</label>
                 <input
                   autoFocus
                   type="text"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder="输入任务标题..."
+                  placeholder={t("输入任务标题...", "Enter a task title...")}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1.5">任务描述</label>
+                <label className="block text-sm font-medium text-text mb-1.5">{t("任务描述", "Description")}</label>
                 <textarea
                   value={newDescription}
                   onChange={e => setNewDescription(e.target.value)}
-                  placeholder="描述任务详情..."
+                  placeholder={t("描述任务详情...", "Describe the task...")}
                   rows={3}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1.5">优先级</label>
+                <label className="block text-sm font-medium text-text mb-1.5">{t("优先级", "Priority")}</label>
                 <select
                   value={newPriority}
                   onChange={e => setNewPriority(e.target.value)}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary"
                 >
-                  <option value="low">低优先级</option>
-                  <option value="medium">中优先级</option>
-                  <option value="high">高优先级</option>
-                  <option value="critical">紧急</option>
+                  <option value="low">{t("低优先级", "Low")}</option>
+                  <option value="medium">{t("中优先级", "Medium")}</option>
+                  <option value="high">{t("高优先级", "High")}</option>
+                  <option value="critical">{t("紧急", "Critical")}</option>
                 </select>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-text-muted hover:text-text">取消</button>
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-text-muted hover:text-text">{t("取消", "Cancel")}</button>
               <button
                 onClick={handleCreate}
                 disabled={!newTitle.trim()}
                 className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
-              >
-                创建任务
-              </button>
+              >{t("创建任务", "Create task")}</button>
             </div>
           </div>
         </div>

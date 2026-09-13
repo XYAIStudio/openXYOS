@@ -3,9 +3,12 @@ import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest } from "../middleware";
 import { notifyTaskAssigned, notifyTaskStatusChanged, logActivity } from "../services/notification";
 import { AuditTrailEngine } from "../services/audit-trail";
+import { localizedError } from "../utils/locale";
 
 export const taskRoutes = Router();
 taskRoutes.use(authenticate);
+
+const taskError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 function getScopedTask(req: AuthRequest, rawTaskId: unknown): any | null {
   const taskId = Number(rawTaskId);
@@ -30,7 +33,7 @@ taskRoutes.get("/", (req: AuthRequest, res) => {
 
     sql += " ORDER BY t.created_at DESC";
     res.json({ success: true, data: dbAll(sql, params) });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.get("/stats", (req: AuthRequest, res) => {
@@ -39,7 +42,7 @@ taskRoutes.get("/stats", (req: AuthRequest, res) => {
     const stats: Record<string, number> = { total: 0, todo: 0, in_progress: 0, done: 0, review: 0 };
     for (const r of rows) { stats[r.status] = r.count; stats.total += r.count; }
     res.json({ success: true, data: stats });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.get("/:id", (req: AuthRequest, res) => {
@@ -53,7 +56,7 @@ taskRoutes.get("/:id", (req: AuthRequest, res) => {
        WHERE t.id = ? AND t.tenant_id = ?`,
       [req.params.id, req.user!.tenant_id]
     );
-    if (!task) return res.status(404).json({ success: false, error: "任务不存在" });
+    if (!task) return res.status(404).json({ success: false, error: taskError(req, "任务不存在", "Task not found") });
 
     const subtasks = dbAll(
       "SELECT * FROM task_subtasks WHERE task_id = ? AND tenant_id = ? ORDER BY sort_order",
@@ -75,15 +78,15 @@ taskRoutes.get("/:id", (req: AuthRequest, res) => {
     );
 
     res.json({ success: true, data: { ...task, subtasks, comments, attachments } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.post("/", (req: AuthRequest, res) => {
   try {
     const { title, description, priority, assigned_to, due_date } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: taskError(req, "标题必填", "Title is required") });
     if (assigned_to && !dbGet("SELECT 1 FROM employees WHERE id = ? AND tenant_id = ? AND status = 'active'", [assigned_to, req.user!.tenant_id])) {
-      return res.status(400).json({ success: false, error: "受派员工不存在、未启用或不属于当前集团" });
+      return res.status(400).json({ success: false, error: taskError(req, "受派员工不存在、未启用或不属于当前集团", "The assignee does not exist, is inactive, or is outside the current group") });
     }
 
     const result = dbRun(
@@ -117,15 +120,15 @@ taskRoutes.post("/", (req: AuthRequest, res) => {
     }
 
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.put("/:id", (req: AuthRequest, res) => {
   try {
     const { title, description, priority, assigned_to, due_date } = req.body;
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     if (assigned_to !== undefined && assigned_to !== null && !dbGet("SELECT 1 FROM employees WHERE id = ? AND tenant_id = ? AND status = 'active'", [assigned_to, req.user!.tenant_id])) {
-      return res.status(400).json({ success: false, error: "受派员工不存在、未启用或不属于当前集团" });
+      return res.status(400).json({ success: false, error: taskError(req, "受派员工不存在、未启用或不属于当前集团", "The assignee does not exist, is inactive, or is outside the current group") });
     }
     const updates: string[] = [];
     const params: any[] = [];
@@ -135,7 +138,7 @@ taskRoutes.put("/:id", (req: AuthRequest, res) => {
     if (priority !== undefined) { updates.push("priority = ?"); params.push(priority); }
     if (assigned_to !== undefined) { updates.push("assigned_to = ?"); params.push(assigned_to); }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: taskError(req, "无更新内容", "No changes were provided") });
 
     updates.push("updated_at = CURRENT_TIMESTAMP");
     params.push(req.params.id, req.user!.tenant_id);
@@ -164,12 +167,12 @@ taskRoutes.put("/:id", (req: AuthRequest, res) => {
     });
 
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.delete("/:id", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     dbRun("DELETE FROM task_subtasks WHERE task_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     dbRun("DELETE FROM task_comments WHERE task_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     dbRun("DELETE FROM task_attachments WHERE task_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
@@ -195,16 +198,16 @@ taskRoutes.delete("/:id", (req: AuthRequest, res) => {
     });
 
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.post("/:id/transition", (req: AuthRequest, res) => {
   try {
     const { to } = req.body;
-    if (!["todo", "in_progress", "review", "done"].includes(to)) return res.status(400).json({ success: false, error: "无效状态" });
+    if (!["todo", "in_progress", "review", "done"].includes(to)) return res.status(400).json({ success: false, error: taskError(req, "无效状态", "Invalid task status") });
 
     const task = dbGet("SELECT * FROM tasks WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
-    if (!task) return res.status(404).json({ success: false, error: "任务不存在" });
+    if (!task) return res.status(404).json({ success: false, error: taskError(req, "任务不存在", "Task not found") });
 
     dbRun("UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?", [to, req.params.id, req.user!.tenant_id]);
 
@@ -236,14 +239,14 @@ taskRoutes.post("/:id/transition", (req: AuthRequest, res) => {
     }
 
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.post("/:id/subtasks", (req: AuthRequest, res) => {
   try {
     const { title } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "标题必填" });
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!title) return res.status(400).json({ success: false, error: taskError(req, "标题必填", "Title is required") });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
 
     const maxOrder = dbGet("SELECT MAX(sort_order) as m FROM task_subtasks WHERE task_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
     const result = dbRun(
@@ -251,40 +254,40 @@ taskRoutes.post("/:id/subtasks", (req: AuthRequest, res) => {
       [req.params.id, title, (maxOrder?.m || 0) + 1, req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.put("/:id/subtasks/:subtaskId", (req: AuthRequest, res) => {
   try {
     const { title, completed } = req.body;
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     const updates: string[] = [];
     const params: any[] = [];
 
     if (title !== undefined) { updates.push("title = ?"); params.push(title); }
     if (completed !== undefined) { updates.push("completed = ?"); params.push(completed ? 1 : 0); }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: taskError(req, "无更新内容", "No changes were provided") });
 
     params.push(req.params.subtaskId, req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE task_subtasks SET ${updates.join(", ")} WHERE id = ? AND task_id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.delete("/:id/subtasks/:subtaskId", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     dbRun("DELETE FROM task_subtasks WHERE id = ? AND task_id = ? AND tenant_id = ?", [req.params.subtaskId, req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.post("/:id/comments", (req: AuthRequest, res) => {
   try {
     const { content } = req.body;
-    if (!content) return res.status(400).json({ success: false, error: "内容必填" });
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!content) return res.status(400).json({ success: false, error: taskError(req, "内容必填", "Content is required") });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
 
     const result = dbRun(
       "INSERT INTO task_comments (task_id, user_id, content, comment_type, tenant_id) VALUES (?, ?, ?, 'user', ?)",
@@ -299,42 +302,42 @@ taskRoutes.post("/:id/comments", (req: AuthRequest, res) => {
     );
 
     res.json({ success: true, data: comment });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.delete("/:id/comments/:commentId", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     dbRun("DELETE FROM task_comments WHERE id = ? AND task_id = ? AND user_id = ? AND tenant_id = ?", [req.params.commentId, req.params.id, req.user!.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.get("/:id/attachments", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     const attachments = dbAll(
       "SELECT * FROM task_attachments WHERE task_id = ? AND tenant_id = ? ORDER BY created_at",
       [req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: attachments });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.post("/:id/attachments", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     // A client-controlled physical file path is never an acceptable attachment
     // contract. R0 keeps this write endpoint closed until controlled upload,
     // scanning and authorized download are implemented together.
-    res.status(409).json({ success: false, error: "任务附件受控上传将在后续安全工作包启用" });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+    res.status(409).json({ success: false, error: taskError(req, "任务附件受控上传将在后续安全工作包启用", "Controlled task attachment upload will be enabled in a future security release") });
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });
 
 taskRoutes.delete("/:id/attachments/:attachmentId", (req: AuthRequest, res) => {
   try {
-    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: "任务不存在或无访问权限" });
+    if (!getScopedTask(req, req.params.id)) return res.status(404).json({ success: false, error: taskError(req, "任务不存在或无访问权限", "Task not found or access is denied") });
     dbRun("DELETE FROM task_attachments WHERE id = ? AND task_id = ? AND tenant_id = ?", [req.params.attachmentId, req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: taskError(req, "任务服务暂时不可用，请稍后重试", "Task service is temporarily unavailable. Please try again") }); }
 });

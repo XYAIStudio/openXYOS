@@ -72,6 +72,10 @@ async function main() {
     const outsiderRead = await request(baseUrl, tokenB, `/api/chats/${chatA}`);
     expectStatus(outsiderRead.status, 404, "cross-tenant user cannot read chat");
 
+    const localizedTaskError = await request(baseUrl, tokenA, "/api/tasks", { method: "POST", headers: { "Accept-Language": "en" }, body: JSON.stringify({}) });
+    expectStatus(localizedTaskError.status, 400, "English task validation returns a client error");
+    assert.equal((await localizedTaskError.json()).error, "Title is required", "English task validation error is localized");
+
     const crossTenantAgent = await request(baseUrl, tokenA, "/api/chats", { method: "POST", body: JSON.stringify({ title: "invalid agent group", employee_ids: [employeeB] }) });
     expectStatus(crossTenantAgent.status, 400, "cross-tenant AI cannot join chat");
 

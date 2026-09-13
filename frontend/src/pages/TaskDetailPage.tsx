@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
+import { useLocale } from "../i18n";
 
 interface Subtask {
   id: number; title: string; completed: number; sort_order: number;
@@ -29,17 +30,9 @@ interface TaskDetail {
   subtasks: Subtask[]; comments: Comment[]; attachments: Attachment[];
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  todo: "待办", in_progress: "进行中", review: "评审中", done: "已完成",
-};
-
 const STATUS_COLORS: Record<string, string> = {
   todo: "bg-info/10 text-info", in_progress: "bg-warning/10 text-warning",
   review: "bg-accent/10 text-accent", done: "bg-success/10 text-success",
-};
-
-const PRIORITY_LABELS: Record<string, string> = {
-  critical: "紧急", high: "高", medium: "中", low: "低",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -49,6 +42,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newSubtask, setNewSubtask] = useState("");
@@ -131,7 +125,7 @@ export default function TaskDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!id || !confirm("确定删除此任务？")) return;
+    if (!id || !confirm(t("确定删除此任务？", "Delete this task?"))) return;
     await authFetch(`/api/tasks/${id}`, { method: "DELETE" });
     navigate("/tasks");
   };
@@ -139,7 +133,7 @@ export default function TaskDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-text-muted">
-        加载中...
+        {t("加载中...", "Loading...")}
       </div>
     );
   }
@@ -147,11 +141,14 @@ export default function TaskDetailPage() {
   if (!task) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-text-muted">
-        <p>任务不存在</p>
-        <button onClick={() => navigate("/tasks")} className="mt-2 text-primary text-sm">返回任务列表</button>
+        <p>{t("任务不存在", "Task not found")}</p>
+        <button onClick={() => navigate("/tasks")} className="mt-2 text-primary text-sm">{t("返回任务列表", "Back to tasks")}</button>
       </div>
     );
   }
+
+  const statusLabel = (status: string) => ({ todo: t("待办", "To do"), in_progress: t("进行中", "In progress"), review: t("评审中", "In review"), done: t("已完成", "Done") }[status] || status);
+  const priorityLabel = (priority: string) => ({ critical: t("紧急", "Critical"), high: t("高", "High"), medium: t("中", "Medium"), low: t("低", "Low") }[priority] || priority);
 
   const completedSubtasks = task.subtasks.filter(s => s.completed).length;
   const totalSubtasks = task.subtasks.length;
@@ -163,7 +160,7 @@ export default function TaskDetailPage() {
           <button onClick={() => navigate("/tasks")} className="p-1.5 rounded-md hover:bg-bg text-text-muted">
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-lg font-bold text-text">任务详情</h1>
+          <h1 className="text-lg font-bold text-text">{t("任务详情", "Task details")}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -191,38 +188,38 @@ export default function TaskDetailPage() {
                   value={editForm.title}
                   onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary"
-                  placeholder="任务标题"
+                  placeholder={t("任务标题", "Task title")}
                 />
                 <textarea
                   value={editForm.description}
                   onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary resize-none"
                   rows={4}
-                  placeholder="任务描述"
+                  placeholder={t("任务描述", "Description")}
                 />
                 <select
                   value={editForm.priority}
                   onChange={e => setEditForm(prev => ({ ...prev, priority: e.target.value }))}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm outline-none focus:border-primary"
                 >
-                  <option value="low">低优先级</option>
-                  <option value="medium">中优先级</option>
-                  <option value="high">高优先级</option>
-                  <option value="critical">紧急</option>
+                  <option value="low">{t("低优先级", "Low")}</option>
+                  <option value="medium">{t("中优先级", "Medium")}</option>
+                  <option value="high">{t("高优先级", "High")}</option>
+                  <option value="critical">{t("紧急", "Critical")}</option>
                 </select>
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-text-muted">取消</button>
-                  <button onClick={handleSaveEdit} className="px-4 py-2 bg-primary text-white text-sm rounded-lg">保存</button>
+                  <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-text-muted">{t("取消", "Cancel")}</button>
+                  <button onClick={handleSaveEdit} className="px-4 py-2 bg-primary text-white text-sm rounded-lg">{t("保存", "Save")}</button>
                 </div>
               </div>
             ) : (
               <div className="bg-bg-card border border-border rounded-xl p-6">
                 <div className="flex items-start gap-3 mb-4">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[task.status]}`}>
-                    {STATUS_LABELS[task.status]}
+                    {statusLabel(task.status)}
                   </span>
                   <span className={`text-xs font-bold ${PRIORITY_COLORS[task.priority]}`}>
-                    {PRIORITY_LABELS[task.priority]}
+                    {priorityLabel(task.priority)}
                   </span>
                 </div>
                 <h2 className="text-xl font-bold text-text mb-2">{task.title}</h2>
@@ -232,11 +229,11 @@ export default function TaskDetailPage() {
                 <div className="flex items-center gap-4 mt-4 text-xs text-text-muted">
                   <div className="flex items-center gap-1">
                     <User size={12} />
-                    <span>创建者: {task.creator_name || "未知"}</span>
+                    <span>{t("创建者:", "Created by:")} {task.creator_name || t("未知", "Unknown")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar size={12} />
-                    <span>创建时间: {task.created_at?.split("T")[0]}</span>
+                    <span>{t("创建时间:", "Created:")} {task.created_at?.split("T")[0]}</span>
                   </div>
                 </div>
               </div>
@@ -246,7 +243,7 @@ export default function TaskDetailPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-text flex items-center gap-2">
                   <CheckCircle size={16} className="text-primary" />
-                  子任务 {totalSubtasks > 0 && `(${completedSubtasks}/${totalSubtasks})`}
+                  {t("子任务", "Subtasks")} {totalSubtasks > 0 && `(${completedSubtasks}/${totalSubtasks})`}
                 </h3>
               </div>
 
@@ -291,7 +288,7 @@ export default function TaskDetailPage() {
                   value={newSubtask}
                   onChange={e => setNewSubtask(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleAddSubtask()}
-                  placeholder="添加子任务..."
+                  placeholder={t("添加子任务...", "Add a subtask...")}
                   className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary"
                 />
                 <button
@@ -307,7 +304,7 @@ export default function TaskDetailPage() {
             <div className="bg-bg-card border border-border rounded-xl p-6">
               <h3 className="text-sm font-semibold text-text flex items-center gap-2 mb-4">
                 <MessageSquare size={16} className="text-primary" />
-                评论 ({task.comments.length})
+                {t("评论", "Comments")} ({task.comments.length})
               </h3>
 
               <div className="space-y-4 mb-4">
@@ -325,7 +322,7 @@ export default function TaskDetailPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium text-text">
-                          {comment.user_name || comment.employee_name || "未知"}
+                          {comment.user_name || comment.employee_name || t("未知", "Unknown")}
                         </span>
                         <span className="text-[10px] text-text-muted">
                           {comment.created_at?.replace("T", " ").substring(0, 16)}
@@ -341,7 +338,7 @@ export default function TaskDetailPage() {
                 <textarea
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  placeholder="添加评论..."
+                  placeholder={t("添加评论...", "Add a comment...")}
                   rows={2}
                   className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary resize-none"
                 />
@@ -358,58 +355,52 @@ export default function TaskDetailPage() {
 
           <div className="space-y-6">
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4">状态流转</h3>
+              <h3 className="text-sm font-semibold text-text mb-4">{t("状态流转", "Status transition")}</h3>
               <div className="space-y-2">
                 {task.status === "todo" && (
                   <button
                     onClick={() => handleTransition("in_progress")}
                     className="w-full px-4 py-2.5 bg-warning/10 text-warning text-sm rounded-lg hover:opacity-80"
-                  >
-                    开始执行
-                  </button>
+                  >{t("开始执行", "Start work")}</button>
                 )}
                 {task.status === "in_progress" && (
                   <button
                     onClick={() => handleTransition("review")}
                     className="w-full px-4 py-2.5 bg-accent/10 text-accent text-sm rounded-lg hover:opacity-80"
-                  >
-                    提交评审
-                  </button>
+                  >{t("提交评审", "Submit for review")}</button>
                 )}
                 {task.status === "review" && (
                   <button
                     onClick={() => handleTransition("done")}
                     className="w-full px-4 py-2.5 bg-success/10 text-success text-sm rounded-lg hover:opacity-80"
-                  >
-                    评审通过
-                  </button>
+                  >{t("评审通过", "Approve review")}</button>
                 )}
                 {task.status === "done" && (
                   <div className="text-center py-4">
                     <CheckCircle size={32} className="text-success mx-auto mb-2" />
-                    <p className="text-sm text-success">任务已完成</p>
+                    <p className="text-sm text-success">{t("任务已完成", "Task completed")}</p>
                   </div>
                 )}
               </div>
             </div>
 
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4">负责人</h3>
+              <h3 className="text-sm font-semibold text-text mb-4">{t("负责人", "Assignee")}</h3>
               {task.assignee_name ? (
                 <div className="flex items-center gap-3">
                   <Avatar id={task.assigned_to} name={task.assignee_name} size={40} className="bg-primary-bg" customSrc={task.assignee_avatar_url || undefined} />
                   <div>
                     <p className="text-sm font-medium text-text">{task.assignee_name}</p>
-                    <p className="text-xs text-text-muted">AI员工</p>
+                    <p className="text-xs text-text-muted">{t("AI员工", "AI employee")}</p>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-text-muted">待分配</p>
+                <p className="text-sm text-text-muted">{t("待分配", "Unassigned")}</p>
               )}
             </div>
 
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4">附件 ({task.attachments.length})</h3>
+              <h3 className="text-sm font-semibold text-text mb-4">{t("附件", "Attachments")} ({task.attachments.length})</h3>
               {task.attachments.length > 0 ? (
                 <div className="space-y-2">
                   {task.attachments.map(att => (
@@ -420,7 +411,7 @@ export default function TaskDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-text-muted">暂无附件</p>
+                <p className="text-sm text-text-muted">{t("暂无附件", "No attachments")}</p>
               )}
             </div>
           </div>
