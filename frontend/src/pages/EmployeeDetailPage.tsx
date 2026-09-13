@@ -4,6 +4,7 @@ import { authFetch } from "../api/authFetch";
 import { useAuthStore } from "../stores/auth";
 import Avatar from "../components/Avatar";
 import { PRESET_AVATARS } from "../utils/avatar";
+import { useLocale } from "../i18n";
 import {
   ArrowLeft, MessageSquare, Edit2, Save, X, UserPlus, Building2,
   Network, Award, BarChart3, BookOpen, Plus, Check, Trash2, Camera, Image, UserX, AlertTriangle
@@ -45,6 +46,7 @@ export default function EmployeeDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "super_admin" || user?.role === "admin";
+  const { t } = useLocale();
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -59,7 +61,7 @@ export default function EmployeeDetailPage() {
   const [offboarding, setOffboarding] = useState(false);
   const [offboardPreview, setOffboardPreview] = useState<{ holding_count: number; holding_value: number } | null>(null);
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<number>>(new Set());
-  const [skillCategory, setSkillCategory] = useState("全部");
+  const [skillCategory, setSkillCategory] = useState("all");
 
   // 权限判断：管理员 或 本人（employee.user_id 匹配当前用户）
   const isOwnProfile = !!(user && employee && employee.user_id === user.id);
@@ -226,19 +228,19 @@ export default function EmployeeDetailPage() {
       alert(d.data.message);
       navigate("/org");
     } else {
-      alert(d.error || "操作失败");
+      alert(d.error || t("操作失败", "Operation failed"));
     }
     setOffboarding(false);
     setOffboardPreview(null);
   };
 
-  const categories = ["全部", ...new Set(allSkills.map(s => s.category))];
-  const filteredSkills = skillCategory === "全部" ? allSkills : allSkills.filter(s => s.category === skillCategory);
+  const categories = ["all", ...new Set(allSkills.map(s => s.category))];
+  const filteredSkills = skillCategory === "all" ? allSkills : allSkills.filter(s => s.category === skillCategory);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-text-muted">加载中...</div>
+        <div className="text-text-muted">{t("加载中...", "Loading...")}</div>
       </div>
     );
   }
@@ -246,8 +248,8 @@ export default function EmployeeDetailPage() {
   if (!employee) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-text-muted">未找到员工信息</p>
-        <button onClick={() => navigate("/org")} className="px-4 py-2 bg-primary text-white rounded-lg">返回组织架构</button>
+        <p className="text-text-muted">{t("未找到员工信息", "Employee not found")}</p>
+        <button onClick={() => navigate("/org")} className="px-4 py-2 bg-primary text-white rounded-lg">{t("返回组织架构", "Back to organization")}</button>
       </div>
     );
   }
@@ -263,12 +265,12 @@ export default function EmployeeDetailPage() {
           <Avatar id={employee.id} name={employee.name} size={56} className="rounded-xl" customSrc={employee.avatar_url || undefined} />
           <div className="flex-1">
             <h1 className="text-xl font-bold text-white">{employee.name}</h1>
-            <p className="text-blue-100 text-sm">{employee.role || "未设置职位"} · {department?.name || ""}</p>
+            <p className="text-blue-100 text-sm">{employee.role || t("未设置职位", "No role set")} · {department?.name || ""}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className={`w-2.5 h-2.5 rounded-full ${employee.is_online ? "bg-green-400" : "bg-gray-300"}`} />
-              <span className="text-xs text-blue-100">{employee.is_online ? "在线" : "离线"}</span>
+              <span className="text-xs text-blue-100">{employee.is_online ? t("在线", "Online") : t("离线", "Offline")}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${employee.employee_type === "ai" ? "bg-green-400/20 text-green-100" : "bg-white/20 text-white"}`}>
-                {employee.employee_type === "ai" ? "AI员工" : "人类员工"}
+                {employee.employee_type === "ai" ? t("AI员工", "AI employee") : t("人类员工", "Human employee")}
               </span>
               {employee.position_sequence && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-400/20 text-purple-100">{employee.position_sequence}</span>
@@ -277,22 +279,22 @@ export default function EmployeeDetailPage() {
           </div>
           <div className="flex gap-2">
             {canEdit && !editing && (
-              <button onClick={() => setEditing(true)} className="px-4 py-2 bg-white/20 text-white text-sm rounded-lg hover:bg-white/30">编辑</button>
+              <button onClick={() => setEditing(true)} className="px-4 py-2 bg-white/20 text-white text-sm rounded-lg hover:bg-white/30">{t("编辑", "Edit")}</button>
             )}
             {isAdmin && employee.status === "active" && (
               <button onClick={handleOffboardPreview} className="flex items-center gap-1.5 px-4 py-2 bg-red-500/30 text-white text-sm rounded-lg hover:bg-red-500/50 font-medium">
-                <UserX size={14} /> 离职清算
+                <UserX size={14} /> {t("离职清算", "Offboard")}
               </button>
             )}
             <button onClick={async () => {
               const r = await authFetch("/api/chats", {
                 method: "POST",
-                body: JSON.stringify({ title: `与${employee.name}的对话`, type: "single", employee_ids: [employee.id] }),
+                body: JSON.stringify({ title: t("与" + employee.name + "的对话", "Chat with " + employee.name), type: "single", employee_ids: [employee.id] }),
               });
               const d = await r.json();
               if (d.success) navigate(`/chat?open=${d.data.id}`);
             }} className="flex items-center gap-1.5 px-4 py-2 bg-white text-blue-600 text-sm rounded-lg hover:bg-blue-50 font-medium">
-              <MessageSquare size={14} /> 发起聊天
+              <MessageSquare size={14} /> {t("发起聊天", "Start chat")}
             </button>
           </div>
         </div>
@@ -305,27 +307,27 @@ export default function EmployeeDetailPage() {
           <div className="space-y-6">
             {/* Basic Info Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><Building2 size={16} /> 基本信息</h3>
+              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><Building2 size={16} /> {t("基本信息", "Basic information")}</h3>
               {editing ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">姓名</label>
+                    <label className="block text-xs text-text-muted mb-1">{t("姓名", "Name")}</label>
                     <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary" />
                   </div>
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">岗位</label>
+                    <label className="block text-xs text-text-muted mb-1">{t("岗位", "Role")}</label>
                     <input value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary" />
                   </div>
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">所属部门</label>
+                    <label className="block text-xs text-text-muted mb-1">{t("所属部门", "Department")}</label>
                     <select value={editDepartmentId} onChange={e => setEditDepartmentId(Number(e.target.value))} className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary">
                       {departments.map(d => <option key={d.id} value={d.id}>{"　".repeat(d.level)}{d.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">形象照</label>
+                    <label className="block text-xs text-text-muted mb-1">{t("形象照", "Profile image")}</label>
                     <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-bg/50">
-                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title="点击上传形象照">
+                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title={t("点击上传形象照", "Click to upload a profile image")}>
                         <Avatar
                           id={employee?.id}
                           name={employee?.name}
@@ -344,36 +346,36 @@ export default function EmployeeDetailPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-text-secondary">
-                          {employee?.avatar_url ? "已上传形象照，点击可更换" : "点击上传个人形象照"}
+                          {employee?.avatar_url ? t("已上传形象照，点击可更换", "Profile image uploaded. Click to replace.") : t("点击上传个人形象照", "Click to upload a profile image")}
                         </p>
-                        <p className="text-[10px] text-text-muted mt-0.5">支持 PNG / JPG / WebP / GIF / SVG，建议 1:1 方形</p>
+                        <p className="text-[10px] text-text-muted mt-0.5">{t("支持 PNG / JPG / WebP / GIF / SVG，建议 1:1 方形", "PNG / JPG / WebP / GIF / SVG supported. A square 1:1 image is recommended.")}</p>
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowAvatarGallery(true); }}
                         className="shrink-0 px-2.5 py-1.5 text-[11px] text-primary border border-primary/30 rounded-md hover:bg-primary/5 flex items-center gap-1"
                       >
-                        <Image size={12} /> 备选头像
+                        <Image size={12} /> {t("备选头像", "Preset avatars")}
                       </button>
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">取消</button>
-                    <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50">{saving ? "保存中..." : "保存"}</button>
+                    <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">{t("取消", "Cancel")}</button>
+                    <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50">{saving ? t("保存中...", "Saving...") : t("保存", "Save")}</button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span className="text-text-muted">姓名</span><span className="text-text font-medium">{employee.name}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">岗位</span><span className="text-text">{employee.role || "未设置"}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">部门</span><span className="text-text">{department?.name || "未分配"}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">类型</span><span className="text-text">{employee.employee_type === "ai" ? "AI员工" : "人类员工"}</span></div>
-                  {employee.agent_type && <div className="flex justify-between"><span className="text-text-muted">AI角色</span><span className="text-text">{employee.agent_type}</span></div>}
+                  <div className="flex justify-between"><span className="text-text-muted">{t("姓名", "Name")}</span><span className="text-text font-medium">{employee.name}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{t("岗位", "Role")}</span><span className="text-text">{employee.role || t("未设置", "Not set")}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">部门</span><span className="text-text">{department?.name || t("未分配", "Unassigned")}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{t("类型", "Type")}</span><span className="text-text">{employee.employee_type === "ai" ? t("AI员工", "AI employee") : t("人类员工", "Human employee")}</span></div>
+                  {employee.agent_type && <div className="flex justify-between"><span className="text-text-muted">{t("AI角色", "AI role")}</span><span className="text-text">{employee.agent_type}</span></div>}
                   {employee.pid && <div className="flex justify-between"><span className="text-text-muted">PID</span><span className="text-text font-mono">{employee.pid}</span></div>}
                   {/* 形象照 — 查看模式下管理员或本人可更改 */}
                   {canEdit && (
                     <div className="pt-2 border-t border-border">
                       <div className="flex items-center gap-3">
-                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title="点击上传形象照">
+                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title={t("点击上传形象照", "Click to upload a profile image")}>
                           <Avatar
                             id={employee.id}
                             name={employee.name}
@@ -391,14 +393,14 @@ export default function EmployeeDetailPage() {
                           )}
                         </div>
                         <div>
-                          <p className="text-xs text-text-secondary">{employee.avatar_url ? "已上传形象照 · 点击更换" : "点击上传形象照"}</p>
-                          <p className="text-[10px] text-text-muted">PNG / JPG / WebP / GIF，建议 1:1</p>
+                          <p className="text-xs text-text-secondary">{employee.avatar_url ? t("已上传形象照 · 点击更换", "Profile image uploaded · click to replace") : t("点击上传形象照", "Click to upload a profile image")}</p>
+                          <p className="text-[10px] text-text-muted">{t("PNG / JPG / WebP / GIF，建议 1:1", "PNG / JPG / WebP / GIF · 1:1 recommended")}</p>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); setShowAvatarGallery(true); }}
                           className="shrink-0 px-2.5 py-1.5 text-[11px] text-primary border border-primary/30 rounded-md hover:bg-primary/5 flex items-center gap-1"
                         >
-                          <Image size={12} /> 备选头像
+                          <Image size={12} /> {t("备选头像", "Preset avatars")}
                         </button>
                       </div>
                     </div>
@@ -409,27 +411,27 @@ export default function EmployeeDetailPage() {
 
             {/* Job Description Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><BookOpen size={16} /> 岗位职责</h3>
+              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><BookOpen size={16} /> {t("岗位职责", "Responsibilities")}</h3>
               {editing ? (
                 <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={6}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary resize-none" />
               ) : (
-                <p className="text-sm text-text-secondary leading-relaxed">{employee.description || "暂未设置岗位职责描述"}</p>
+                <p className="text-sm text-text-secondary leading-relaxed">{employee.description || t("暂未设置岗位职责描述", "No responsibilities have been set")}</p>
               )}
             </div>
 
             {/* Skills Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-text flex items-center gap-2"><Award size={16} /> 技能配备</h3>
+                <h3 className="text-sm font-semibold text-text flex items-center gap-2"><Award size={16} /> {t("技能配备", "Skills")}</h3>
                 {isAdmin && (
                   <button onClick={() => setShowSkillPicker(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
-                    <Plus size={12} /> 管理技能
+                    <Plus size={12} /> {t("管理技能", "Manage skills")}
                   </button>
                 )}
               </div>
               {employeeSkills.length === 0 ? (
-                <p className="text-sm text-text-muted">暂未配备技能</p>
+                <p className="text-sm text-text-muted">{t("暂未配备技能", "No skills assigned")}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {employeeSkills.map(skill => (
@@ -446,9 +448,9 @@ export default function EmployeeDetailPage() {
           <div className="space-y-6">
             {/* Reporting Lines Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><Network size={16} /> 汇报关系</h3>
+              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><Network size={16} /> {t("汇报关系", "Reporting relationships")}</h3>
               {reportingLines.length === 0 ? (
-                <p className="text-sm text-text-muted">暂无汇报关系</p>
+                <p className="text-sm text-text-muted">{t("暂无汇报关系", "No reporting relationships")}</p>
               ) : (
                 <div className="space-y-2">
                   {reportingLines.map(line => (
@@ -458,7 +460,7 @@ export default function EmployeeDetailPage() {
                         <span className="text-sm text-text">{line.manager_name}</span>
                         <span className="text-[10px] text-text-muted">{line.manager_role}</span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-bg-card border border-border">{line.line_type === "solid" ? "实线" : "虚线"}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-bg-card border border-border">{line.line_type === "solid" ? t("实线", "Solid line") : t("虚线", "Dotted line")}</span>
                     </div>
                   ))}
                 </div>
@@ -467,13 +469,13 @@ export default function EmployeeDetailPage() {
 
             {/* Performance Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><BarChart3 size={16} /> 绩效概览</h3>
+              <h3 className="text-sm font-semibold text-text mb-4 flex items-center gap-2"><BarChart3 size={16} /> {t("绩效概览", "Performance overview")}</h3>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "任务完成", value: performance?.scores?.task_completion ?? "-", suffix: "%", icon: "✅" },
-                  { label: "质量评分", value: performance?.scores?.quality ?? "-", suffix: "", icon: "⭐" },
-                  { label: "执行效率", value: performance?.scores?.efficiency ?? "-", suffix: "%", icon: "⚡" },
-                  { label: "协作评分", value: performance?.scores?.collaboration ?? "-", suffix: "", icon: "🤝" },
+                  { label: t("任务完成", "Task completion"), value: performance?.scores?.task_completion ?? "-", suffix: "%", icon: "✅" },
+                  { label: t("质量评分", "Quality score"), value: performance?.scores?.quality ?? "-", suffix: "", icon: "⭐" },
+                  { label: t("执行效率", "Execution efficiency"), value: performance?.scores?.efficiency ?? "-", suffix: "%", icon: "⚡" },
+                  { label: t("协作评分", "Collaboration score"), value: performance?.scores?.collaboration ?? "-", suffix: "", icon: "🤝" },
                 ].map((item, i) => (
                   <div key={i} className="bg-bg rounded-lg p-3 text-center">
                     <div className="text-lg mb-1">{item.icon}</div>
@@ -484,7 +486,7 @@ export default function EmployeeDetailPage() {
               </div>
               {performance?.scores?.overall != null && (
                 <div className="mt-3 p-3 bg-bg rounded-lg text-center">
-                  <div className="text-xs text-text-muted mb-1">综合评分</div>
+                  <div className="text-xs text-text-muted mb-1">{t("综合评分", "Overall score")}</div>
                   <div className={`text-2xl font-bold ${performance.scores.overall >= 80 ? 'text-success' : performance.scores.overall >= 60 ? 'text-warning' : 'text-danger'}`}>
                     {performance.scores.overall}
                   </div>
@@ -493,36 +495,36 @@ export default function EmployeeDetailPage() {
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-text">{performance?.task_stats?.total ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">总任务</div>
+                  <div className="text-[10px] text-text-muted">{t("总任务", "Total tasks")}</div>
                 </div>
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-success">{performance?.task_stats?.completed ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">已完成</div>
+                  <div className="text-[10px] text-text-muted">{t("已完成", "Completed")}</div>
                 </div>
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-primary">{performance?.task_stats?.in_progress ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">进行中</div>
+                  <div className="text-[10px] text-text-muted">{t("进行中", "In progress")}</div>
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-text">{performance?.chat_stats?.chat_count ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">参与会话</div>
+                  <div className="text-[10px] text-text-muted">{t("参与会话", "Chats")}</div>
                 </div>
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-text">{performance?.skill_count ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">掌握技能</div>
+                  <div className="text-[10px] text-text-muted">{t("掌握技能", "Skills")}</div>
                 </div>
                 <div className="bg-bg rounded-lg p-2">
                   <div className="text-sm font-bold text-text">{performance?.reflection_count ?? 0}</div>
-                  <div className="text-[10px] text-text-muted">反思记录</div>
+                  <div className="text-[10px] text-text-muted">{t("反思记录", "Reflections")}</div>
                 </div>
               </div>
             </div>
 
             {/* Skills Tags Card */}
             <div className="bg-bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text mb-4">岗位职责标签</h3>
+              <h3 className="text-sm font-semibold text-text mb-4">{t("岗位职责标签", "Responsibility tags")}</h3>
               {employee.skills ? (
                 <div className="flex flex-wrap gap-1.5">
                   {employee.skills.split(",").map((s, i) => (
@@ -530,7 +532,7 @@ export default function EmployeeDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-text-muted">暂无标签</p>
+                <p className="text-sm text-text-muted">{t("暂无标签", "No tags")}</p>
               )}
             </div>
           </div>
@@ -543,7 +545,7 @@ export default function EmployeeDetailPage() {
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowSkillPicker(false)} />
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bg-card rounded-2xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col z-50">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="text-base font-bold text-text">技能配备</h3>
+              <h3 className="text-base font-bold text-text">{t("技能配备", "Skills")}</h3>
               <button onClick={() => setShowSkillPicker(false)} className="w-8 h-8 rounded-full bg-bg flex items-center justify-center text-text-muted hover:text-text"><X size={16} /></button>
             </div>
             <div className="px-5 py-3 border-b border-border">
@@ -573,10 +575,10 @@ export default function EmployeeDetailPage() {
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-              <span className="text-xs text-text-muted">已选 {selectedSkillIds.size} 项</span>
+              <span className="text-xs text-text-muted">{t("已选 ", "Selected ") + selectedSkillIds.size + t(" 项", "")}</span>
               <div className="flex gap-2">
-                <button onClick={() => setShowSkillPicker(false)} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">取消</button>
-                <button onClick={handleSaveSkills} className="px-5 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90">确认配备</button>
+                <button onClick={() => setShowSkillPicker(false)} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">{t("取消", "Cancel")}</button>
+                <button onClick={handleSaveSkills} className="px-5 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90">{t("确认配备", "Confirm assignment")}</button>
               </div>
             </div>
           </div>
@@ -590,7 +592,7 @@ export default function EmployeeDetailPage() {
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bg-card rounded-2xl shadow-2xl w-[420px] max-h-[80vh] flex flex-col z-50">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="text-base font-bold text-text flex items-center gap-2">
-                <Image size={16} className="text-primary" /> 选择备选头像
+                <Image size={16} className="text-primary" /> {t("选择备选头像", "Choose a preset avatar")}
               </h3>
               <button onClick={() => setShowAvatarGallery(false)} className="w-8 h-8 rounded-full bg-bg flex items-center justify-center text-text-muted hover:text-text">
                 <X size={16} />
@@ -601,7 +603,7 @@ export default function EmployeeDetailPage() {
                 {PRESET_AVATARS.map((avatarPath, idx) => {
                   const isSelected = avatarPreview === avatarPath || employee?.avatar_url === avatarPath;
                   const num = String(idx + 1).padStart(2, "0");
-                  const label = `头像 ${num}`;
+                  const label = t("头像 ", "Avatar ") + num;
                   return (
                     <button
                       key={avatarPath}
@@ -615,7 +617,7 @@ export default function EmployeeDetailPage() {
                     >
                       <img
                         src={avatarPath}
-                        alt={`备选头像 ${label}`}
+                        alt={t("备选头像 ", "Preset avatar ") + label}
                         className="w-full aspect-square object-cover rounded-lg"
                         loading="lazy"
                       />
@@ -629,7 +631,7 @@ export default function EmployeeDetailPage() {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-text-muted text-center mt-4">点击头像即可应用，也可通过上传自定义形象照</p>
+              <p className="text-[11px] text-text-muted text-center mt-4">{t("点击头像即可应用，也可通过上传自定义形象照", "Click an avatar to apply it, or upload a custom profile image.")}</p>
             </div>
           </div>
         </>
@@ -645,36 +647,36 @@ export default function EmployeeDetailPage() {
                 <AlertTriangle size={20} className="text-red-500" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-text">确认离职清算</h3>
-                <p className="text-xs text-text-muted">此操作不可撤销</p>
+                <h3 className="text-base font-bold text-text">{t("确认离职清算", "Confirm offboarding")}</h3>
+                <p className="text-xs text-text-muted">{t("此操作不可撤销", "This action cannot be undone")}</p>
               </div>
             </div>
             <div className="px-5 py-4 space-y-3">
               <p className="text-sm text-text">
-                即将为 <span className="font-medium">{employee?.name}</span> 办理离职清算：
+                {t("即将为 ", "You are about to offboard ")}<span className="font-medium">{employee?.name}</span>{t(" 办理离职清算：", ".")}
               </p>
               {offboardPreview ? (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-text-muted">持有资产</span>
-                    <span className="text-red-600 font-medium">{offboardPreview.holding_count} 项</span>
+                    <span className="text-text-muted">{t("持有资产", "Assets held")}</span>
+                    <span className="text-red-600 font-medium">{offboardPreview.holding_count} {t("项", "items")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-text-muted">资产总值</span>
+                    <span className="text-text-muted">{t("资产总值", "Total asset value")}</span>
                     <span className="text-red-600 font-medium">¥{offboardPreview.holding_value.toLocaleString()}</span>
                   </div>
                   {offboardPreview.holding_count > 0 && (
-                    <p className="text-xs text-red-500 mt-1">所有持有资产将自动归还入库</p>
+                    <p className="text-xs text-red-500 mt-1">{t("所有持有资产将自动归还入库", "All held assets will be returned to inventory automatically")}</p>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-text-muted">正在查询持有资产...</p>
+                <p className="text-sm text-text-muted">{t("正在查询持有资产...", "Checking held assets...")}</p>
               )}
-              <p className="text-xs text-text-muted">员工状态将被标记为"已离职"，部门信息将被清除。</p>
+              <p className="text-xs text-text-muted">{t("员工状态将被标记为“已离职”，部门信息将被清除。", "The employee will be marked as offboarded and their department assignment will be cleared.")}</p>
             </div>
             <div className="flex gap-2 justify-end px-5 py-4 border-t border-border">
-              <button onClick={() => { setOffboarding(false); setOffboardPreview(null); }} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">取消</button>
-              <button onClick={handleOffboardConfirm} className="px-5 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 font-medium">确认离职清算</button>
+              <button onClick={() => { setOffboarding(false); setOffboardPreview(null); }} className="px-4 py-2 text-sm text-text-muted hover:bg-bg rounded-lg">{t("取消", "Cancel")}</button>
+              <button onClick={handleOffboardConfirm} className="px-5 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 font-medium">{t("确认离职清算", "Confirm offboarding")}</button>
             </div>
           </div>
         </>
