@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest, requireAdmin } from "../middleware";
+import { localizedError } from "../utils/locale";
 import { logActivity } from "../services/notification";
 import bcrypt from "bcryptjs";
 
 export const employeeRoutes = Router();
 employeeRoutes.use(authenticate);
+
+const employeeError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 employeeRoutes.get("/", (req: AuthRequest, res) => {
   try {
@@ -27,7 +30,7 @@ employeeRoutes.get("/", (req: AuthRequest, res) => {
     sql += " ORDER BY e.id";
     res.json({ success: true, data: dbAll(sql, params) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -62,7 +65,7 @@ employeeRoutes.get("/stats", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -87,7 +90,7 @@ employeeRoutes.get("/stats/by-category", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -106,7 +109,7 @@ employeeRoutes.post("/:id/onboard", (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -119,7 +122,7 @@ employeeRoutes.put("/:id/reserve", (req: AuthRequest, res) => {
     );
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -133,7 +136,7 @@ employeeRoutes.get("/:id/offboard-preview", (req: AuthRequest, res) => {
       "SELECT id, name, department_id FROM employees WHERE id = ? AND tenant_id = ?",
       [employeeId, tenantId]
     );
-    if (!employee) return res.status(404).json({ success: false, error: "员工不存在" });
+    if (!employee) return res.status(404).json({ success: false, error: employeeError(req, "员工不存在", "Employee not found") });
 
     const assets = dbAll(
       `SELECT a.*, d.name as department_name
@@ -152,7 +155,7 @@ employeeRoutes.get("/:id/offboard-preview", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -161,7 +164,7 @@ employeeRoutes.post("/:id/offboard", (req: AuthRequest, res) => {
   try {
     const userRole = req.user!.role;
     if (!["super_admin", "admin"].includes(userRole)) {
-      return res.status(403).json({ success: false, error: "仅管理员可执行离职清算" });
+      return res.status(403).json({ success: false, error: employeeError(req, "仅管理员可执行离职清算", "Only administrators can complete offboarding") });
     }
 
     const employeeId = parseInt(req.params.id);
@@ -171,7 +174,7 @@ employeeRoutes.post("/:id/offboard", (req: AuthRequest, res) => {
       "SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND status = 'active'",
       [employeeId, tenantId]
     );
-    if (!employee) return res.status(404).json({ success: false, error: "员工不存在或已离职" });
+    if (!employee) return res.status(404).json({ success: false, error: employeeError(req, "员工不存在或已离职", "Employee not found or already offboarded") });
 
     // 查询持有资产
     const assets = dbAll(
@@ -219,7 +222,7 @@ employeeRoutes.post("/:id/offboard", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -231,7 +234,7 @@ employeeRoutes.get("/:id", (req: AuthRequest, res) => {
        WHERE e.id = ? AND e.tenant_id = ?`,
       [req.params.id, req.user!.tenant_id]
     );
-    if (!employee) return res.status(404).json({ success: false, error: "员工不存在" });
+    if (!employee) return res.status(404).json({ success: false, error: employeeError(req, "员工不存在", "Employee not found") });
 
     const tasks = dbAll(
       "SELECT * FROM tasks WHERE assigned_to = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT 10",
@@ -248,14 +251,14 @@ employeeRoutes.get("/:id", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { ...employee, recent_tasks: tasks, performance } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
 employeeRoutes.post("/", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { name, role, department_id, agent_type, employee_type, skills, avatar_emoji, status, employment_category, description, email } = req.body;
-    if (!name) return res.status(400).json({ success: false, error: "姓名必填" });
+    if (!name) return res.status(400).json({ success: false, error: employeeError(req, "姓名必填", "Name is required") });
 
     // 人类员工必须有邮箱，自动创建用户账号
     let userId: number | null = null;
@@ -291,7 +294,7 @@ employeeRoutes.post("/", requireAdmin, (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { id: result.lastInsertRowid } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -309,7 +312,7 @@ employeeRoutes.put("/:id", (req: AuthRequest, res) => {
     if (avatar_emoji !== undefined) { updates.push("avatar_emoji = ?"); params.push(avatar_emoji); }
     if (status !== undefined) { updates.push("status = ?"); params.push(status); }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: employeeError(req, "无更新内容", "No changes were provided") });
 
     params.push(req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE employees SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
@@ -325,7 +328,7 @@ employeeRoutes.put("/:id", (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -343,7 +346,7 @@ employeeRoutes.delete("/:id", (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -358,14 +361,14 @@ employeeRoutes.get("/:id/tasks", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: dbAll(sql, params) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
 employeeRoutes.get("/:id/performance", (req: AuthRequest, res) => {
   try {
     const employee = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
-    if (!employee) return res.status(404).json({ success: false, error: "员工不存在" });
+    if (!employee) return res.status(404).json({ success: false, error: employeeError(req, "员工不存在", "Employee not found") });
 
     const stats = dbGet(
       `SELECT
@@ -389,6 +392,6 @@ employeeRoutes.get("/:id/performance", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });

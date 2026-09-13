@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware";
+import { localizedError } from "../utils/locale";
 
 export const talentRoutes = Router();
 talentRoutes.use(authenticate);
+
+const talentError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 // 获取人才市场列表
 talentRoutes.get("/", (req: AuthRequest, res) => {
@@ -23,7 +26,7 @@ talentRoutes.get("/", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: dbAll(sql, params) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: talentError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -41,7 +44,7 @@ talentRoutes.get("/stats", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { total: total.c, ai: ai.c, human: human.c, byCategory } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: talentError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -49,7 +52,7 @@ talentRoutes.get("/stats", (req: AuthRequest, res) => {
 talentRoutes.post("/:id/recruit", requireAdmin, (req: AuthRequest, res) => {
   try {
     const talent = dbGet("SELECT * FROM talent_pool WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
-    if (!talent) return res.status(404).json({ success: false, error: "人才不存在" });
+    if (!talent) return res.status(404).json({ success: false, error: talentError(req, "人才不存在", "Talent not found") });
 
     // 写入 employees 表（备选状态）
     const result = dbRun(
@@ -73,6 +76,6 @@ talentRoutes.post("/:id/recruit", requireAdmin, (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { employee_id: result.lastInsertRowid } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: talentError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }
 });

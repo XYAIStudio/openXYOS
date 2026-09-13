@@ -141,7 +141,7 @@ export default function EmployeesPage() {
   }
 
   async function handleCreate() {
-    if (!createForm.name.trim()) return alert("请输入姓名");
+    if (!createForm.name.trim()) return alert(t("请输入姓名", "Enter a name"));
     const skillNames = selectedSkills
       .map(id => skillsList.find((s: any) => s.id === id)?.name)
       .filter(Boolean)
@@ -167,10 +167,10 @@ export default function EmployeesPage() {
           if (j.data?.id) navigate(`/employees/${j.data.id}`);
         }
       } else {
-        alert("创建失败");
+        alert(t("创建失败", "Employee creation failed"));
       }
     } catch (e) {
-      alert("创建失败");
+      alert(t("创建失败", "Employee creation failed"));
     }
   }
 
@@ -203,23 +203,23 @@ export default function EmployeesPage() {
   }
 
   async function handleOnboard(empId: number) {
-    const dept = prompt("请输入部门ID（1=CEO办公室, 5=产品研发中心, 10=运营中心...）");
-    const role = prompt("请输入岗位名称（如：前端工程师）");
+    const dept = prompt(t("请输入部门ID（1=CEO办公室, 5=产品研发中心, 10=运营中心...）", "Enter a department ID (for example: 1, 5, or 10)..."));
+    const role = prompt(t("请输入岗位名称（如：前端工程师）", "Enter a job title (for example: Frontend engineer)"));
     try {
       const r = await authFetch(`/api/employees/${empId}/onboard`, {
         method: "POST",
         body: JSON.stringify({ department_id: dept ? Number(dept) : undefined, role: role || undefined }),
       });
       if (r.ok) { loadEmployees(); loadCatStats(); }
-    } catch (e) { alert("入职失败"); }
+    } catch (e) { alert(t("入职失败", "Onboarding failed")); }
   }
 
   async function handleReserve(empId: number) {
-    if (!confirm("确认将该员工转入备选库？部门信息将被清除。")) return;
+    if (!confirm(t("确认将该员工转入备选库？部门信息将被清除。", "Move this employee to the reserve pool? Their department assignment will be cleared."))) return;
     try {
       const r = await authFetch(`/api/employees/${empId}/reserve`, { method: "PUT" });
       if (r.ok) { loadEmployees(); loadCatStats(); }
-    } catch (e) { alert("操作失败"); }
+    } catch (e) { alert(t("操作失败", "Operation failed")); }
   }
 
   async function handleRecruit(talentId: number) {
@@ -256,7 +256,7 @@ export default function EmployeesPage() {
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
             <Plus size={16} />
-            新建员工
+            {t("新建员工", "New employee")}
           </button>
         )}
       </div>
@@ -264,11 +264,11 @@ export default function EmployeesPage() {
       {/* Stats Bar */}
       {catStats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          <StatCard label="内部员工" count={catStats.internal} sub={`🤖AI ${catStats.internalAI}  👤人 ${catStats.internalHuman}`} color="blue" />
-          <StatCard label="备选员工" count={catStats.reserve} sub={`🤖AI ${catStats.reserveAI}  👤人 ${catStats.reserveHuman}`} color="amber" />
-          <StatCard label="人才市场" count={talentStats?.total || 0} sub={`🤖AI ${talentStats?.ai || 0}  👤人 ${talentStats?.human || 0}`} color="green" />
-          <StatCard label="总人力" count={(catStats.internal + catStats.reserve + (talentStats?.total || 0))} sub="内部+备选+市场" color="purple" />
-          <StatCard label="AI占比" count={Math.round(((catStats.internalAI + catStats.reserveAI + (talentStats?.ai || 0)) / (catStats.internal + catStats.reserve + (talentStats?.total || 0) || 1)) * 100)} sub="全人力中AI比例(%)" color="cyan" />
+          <StatCard label={t("内部员工", "Internal employees")} count={catStats.internal} sub={t("🤖AI " + catStats.internalAI + "  👤人 " + catStats.internalHuman, "🤖 AI " + catStats.internalAI + "  👤 Human " + catStats.internalHuman)} color="blue" />
+          <StatCard label={t("备选员工", "Reserve employees")} count={catStats.reserve} sub={t("🤖AI " + catStats.reserveAI + "  👤人 " + catStats.reserveHuman, "🤖 AI " + catStats.reserveAI + "  👤 Human " + catStats.reserveHuman)} color="amber" />
+          <StatCard label={t("人才市场", "Talent market")} count={talentStats?.total || 0} sub={t("🤖AI " + (talentStats?.ai || 0) + "  👤人 " + (talentStats?.human || 0), "🤖 AI " + (talentStats?.ai || 0) + "  👤 Human " + (talentStats?.human || 0))} color="green" />
+          <StatCard label={t("总人力", "Total workforce")} count={(catStats.internal + catStats.reserve + (talentStats?.total || 0))} sub={t("内部+备选+市场", "Internal + reserve + market")} color="purple" />
+          <StatCard label={t("AI占比", "AI share")} count={Math.round(((catStats.internalAI + catStats.reserveAI + (talentStats?.ai || 0)) / (catStats.internal + catStats.reserve + (talentStats?.total || 0) || 1)) * 100)} sub={t("全人力中AI比例(%)", "Share of total workforce (%)")} color="cyan" />
         </div>
       )}
 
@@ -377,7 +377,7 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
 }) {
   const { t } = useLocale();
   if (employees.length === 0) {
-    return <div className="text-center py-16 text-text-muted text-sm">{isInternal ? "暂无内部员工" : "暂无备选员工"}</div>;
+    return <div className="text-center py-16 text-text-muted text-sm">{isInternal ? t("暂无内部员工", "No internal employees") : t("暂无备选员工", "No reserve employees")}</div>;
   }
 
   return (
@@ -397,7 +397,7 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
                   <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">{t("人类", "Human")}</span>
                 )}
               </div>
-              <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || "未分配岗位"}</p>
+              <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || t("未分配岗位", "No role assigned")}</p>
               {emp.position_sequence && (
                 <p className="text-[10px] text-text-muted mt-0.5">{emp.position_sequence}</p>
               )}
@@ -421,17 +421,17 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
               {!isInternal ? (
                 <button onClick={() => onOnboard(emp.id)}
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                  <UserCheck size={12} /> 入职
+                  <UserCheck size={12} /> {t("入职", "Onboard")}
                 </button>
               ) : (
                 <button onClick={() => onReserve(emp.id)}
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-amber-500/50 hover:text-amber-500 transition-colors">
-                  <ArrowRightLeft size={12} /> 转入备选
+                  <ArrowRightLeft size={12} /> {t("转入备选", "Move to reserve")}
                 </button>
               )}
               <button onClick={() => onView(emp.id)}
                 className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
-                详情
+                {t("详情", "Details")}
               </button>
             </div>
           )}
@@ -545,88 +545,89 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
   form: any; departments: any[]; skillsList: any[]; selectedSkills: number[]; onSkillToggle: (id: number) => void;
   onChange: (f: any) => void; onCancel: () => void; onSubmit: () => void;
 }) {
+  const { t } = useLocale();
   const agentTypes = [
-    { value: "frontend_dev", label: "前端工程师" },
-    { value: "backend_dev", label: "后端工程师" },
-    { value: "fullstack_dev", label: "全栈工程师" },
-    { value: "qa_engineer", label: "测试工程师" },
-    { value: "product_manager", label: "产品经理" },
-    { value: "tech_architect", label: "技术架构师" },
-    { value: "data_engineer", label: "数据工程师" },
-    { value: "bi_analyst", label: "BI分析师" },
-    { value: "ai_engineer", label: "AI工程师" },
-    { value: "devops_engineer", label: "DevOps工程师" },
-    { value: "sre_engineer", label: "SRE工程师" },
-    { value: "security_engineer", label: "安全工程师" },
-    { value: "customer_success", label: "客户成功" },
-    { value: "sales_manager", label: "商务经理" },
-    { value: "hr_manager", label: "HR经理" },
-    { value: "finance_manager", label: "财务经理" },
-    { value: "presales_architect", label: "售前架构师" },
-    { value: "strategy_executive", label: "战略执行" },
-    { value: "newmedia_ops", label: "新媒体运营" },
-    { value: "ecommerce_ops", label: "电商运营" },
-    { value: "knowledge", label: "知识管理" },
+    { value: "frontend_dev", label: t("前端工程师", "Frontend engineer") },
+    { value: "backend_dev", label: t("后端工程师", "Backend engineer") },
+    { value: "fullstack_dev", label: t("全栈工程师", "Full-stack engineer") },
+    { value: "qa_engineer", label: t("测试工程师", "QA engineer") },
+    { value: "product_manager", label: t("产品经理", "Product manager") },
+    { value: "tech_architect", label: t("技术架构师", "Technical architect") },
+    { value: "data_engineer", label: t("数据工程师", "Data engineer") },
+    { value: "bi_analyst", label: t("BI分析师", "BI analyst") },
+    { value: "ai_engineer", label: t("AI工程师", "AI engineer") },
+    { value: "devops_engineer", label: t("DevOps工程师", "DevOps engineer") },
+    { value: "sre_engineer", label: t("SRE工程师", "SRE engineer") },
+    { value: "security_engineer", label: t("安全工程师", "Security engineer") },
+    { value: "customer_success", label: t("客户成功", "Customer success") },
+    { value: "sales_manager", label: t("商务经理", "Sales manager") },
+    { value: "hr_manager", label: t("HR经理", "HR manager") },
+    { value: "finance_manager", label: t("财务经理", "Finance manager") },
+    { value: "presales_architect", label: t("售前架构师", "Solutions architect") },
+    { value: "strategy_executive", label: t("战略执行", "Strategy execution") },
+    { value: "newmedia_ops", label: t("新媒体运营", "New media operations") },
+    { value: "ecommerce_ops", label: t("电商运营", "E-commerce operations") },
+    { value: "knowledge", label: t("知识管理", "Knowledge management") },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onCancel}>
       <div className="bg-bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-lg font-bold text-text">新建员工</h2>
+          <h2 className="text-lg font-bold text-text">{t("新建员工", "New employee")}</h2>
           <button onClick={onCancel} className="text-text-muted hover:text-text"><X size={20} /></button>
         </div>
 
         <div className="p-6 space-y-4">
           {/* Type Toggle */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-2 block">员工类型</label>
+            <label className="text-xs font-medium text-text-muted mb-2 block">{t("员工类型", "Employee type")}</label>
             <div className="flex gap-2">
               <button onClick={() => onChange({ ...form, employee_type: "ai" })}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   form.employee_type === "ai" ? "bg-purple-500/10 text-purple-500 border border-purple-500/30" : "bg-bg border border-border text-text-muted"
                 }`}>
-                <Bot size={16} /> AI员工
+                <Bot size={16} /> {t("AI员工", "AI employee")}
               </button>
               <button onClick={() => onChange({ ...form, employee_type: "human", agent_type: "" })}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   form.employee_type === "human" ? "bg-blue-500/10 text-blue-500 border border-blue-500/30" : "bg-bg border border-border text-text-muted"
                 }`}>
-                <User size={16} /> 人类员工
+                <User size={16} /> {t("人类员工", "Human employee")}
               </button>
             </div>
           </div>
 
           {/* Name */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">姓名 *</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("姓名", "Name")} *</label>
             <input type="text" value={form.name} onChange={e => onChange({ ...form, name: e.target.value })}
-              placeholder="输入员工姓名" className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+              placeholder={t("输入员工姓名", "Enter employee name")} className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
           </div>
 
           {/* Role */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">岗位/职位</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("岗位/职位", "Role / title")}</label>
             <input type="text" value={form.role} onChange={e => onChange({ ...form, role: e.target.value })}
-              placeholder="如：前端工程师、产品经理" className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+              placeholder={t("如：前端工程师、产品经理", "For example: Frontend engineer, Product manager")} className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
           </div>
 
           {/* Email - Human only */}
           {form.employee_type === "human" && (
             <div>
-              <label className="text-xs font-medium text-text-muted mb-1 block">邮箱 *</label>
+              <label className="text-xs font-medium text-text-muted mb-1 block">{t("邮箱", "Email")} *</label>
               <input type="email" value={form.email || ""} onChange={e => onChange({ ...form, email: e.target.value })}
-                placeholder="员工登录邮箱" className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
-              <p className="text-[10px] text-text-muted mt-1">自动创建系统账号，默认密码 emp123456</p>
+                placeholder={t("员工登录邮箱", "Employee sign-in email")} className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+              <p className="text-[10px] text-text-muted mt-1">{t("自动创建系统账号，默认密码 emp123456", "A system account is created automatically. Default password: emp123456")}</p>
             </div>
           )}
 
           {/* Department */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">所属部门</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("所属部门", "Department")}</label>
             <select value={form.department_id} onChange={e => onChange({ ...form, department_id: e.target.value })}
               className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary">
-              <option value="">未分配</option>
+              <option value="">{t("未分配", "Unassigned")}</option>
               {departments.map((d: any) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -636,10 +637,10 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
           {/* AI Agent Type */}
           {form.employee_type === "ai" && (
             <div>
-              <label className="text-xs font-medium text-text-muted mb-1 block">AI智能体类型</label>
+              <label className="text-xs font-medium text-text-muted mb-1 block">{t("AI智能体类型", "AI agent type")}</label>
               <select value={form.agent_type} onChange={e => onChange({ ...form, agent_type: e.target.value })}
                 className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary">
-                <option value="">选择类型</option>
+                <option value="">{t("选择类型", "Select a type")}</option>
                 {agentTypes.map(a => (
                   <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
@@ -649,7 +650,7 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
 
           {/* Skills - Multi Select */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">技能（多选）</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("技能（多选）", "Skills (multiple)")}</label>
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
                 {selectedSkills.map(id => {
@@ -680,29 +681,29 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
 
           {/* Description */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">岗位职责描述</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("岗位职责描述", "Responsibilities")}</label>
             <textarea value={form.description || ""} onChange={e => onChange({ ...form, description: e.target.value })}
-              placeholder="描述该岗位的核心职责、工作内容、任职要求等..."
+              placeholder={t("描述该岗位的核心职责、工作内容、任职要求等...", "Describe core responsibilities, work scope, and requirements...")}
               rows={3}
               className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary resize-none" />
           </div>
 
           {/* 职业头像（自动分配） */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">职业头像</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("职业头像", "Professional avatar")}</label>
             <div className="flex items-center gap-3 p-3 bg-bg rounded-lg border border-border">
               <Avatar id={form.name || 'new'} name={form.name} size={36} />
-              <p className="text-xs text-text-muted">系统自动分配职业男女头像，无需手动选择</p>
+              <p className="text-xs text-text-muted">{t("系统自动分配职业男女头像，无需手动选择", "A professional avatar is assigned automatically; no manual selection is needed.")}</p>
             </div>
           </div>
 
           {/* Category */}
           <div>
-            <label className="text-xs font-medium text-text-muted mb-1 block">雇佣类型</label>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("雇佣类型", "Employment category")}</label>
             <select value={form.employment_category} onChange={e => onChange({ ...form, employment_category: e.target.value })}
               className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary">
-              <option value="internal">内部员工（直接入职）</option>
-              <option value="reserve">备选员工（储备库）</option>
+              <option value="internal">{t("内部员工（直接入职）", "Internal employee (onboarded)")}</option>
+              <option value="reserve">{t("备选员工（储备库）", "Reserve employee (talent pool)")}</option>
             </select>
           </div>
         </div>
@@ -710,11 +711,11 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
         <div className="sticky bottom-0 bg-bg-card border-t border-border px-6 py-4 flex gap-3 rounded-b-2xl">
           <button onClick={onCancel}
             className="flex-1 py-2.5 border border-border text-text rounded-lg text-sm font-medium hover:bg-bg-hover transition-colors">
-            取消
+            {t("取消", "Cancel")}
           </button>
           <button onClick={onSubmit}
             className="flex-1 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-            创建员工
+            {t("创建员工", "Create employee")}
           </button>
         </div>
       </div>
