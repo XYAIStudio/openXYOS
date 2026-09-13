@@ -8,8 +8,11 @@ import { saveShortMemory } from "../services/memory";
 import { AuditTrailEngine } from "../services/audit-trail";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import PDFDocument from "pdfkit";
+import { localizedError } from "../utils/locale";
 
 export const chatRoutes = Router();
+
+const chatError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 function cleanMarkdown(text: string): string {
   return text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "").trim();
@@ -62,7 +65,7 @@ function getChatAccess(req: AuthRequest, rawChatId: unknown): ChatAccess | null 
 function requireChatMember(req: AuthRequest, res: any, rawChatId: unknown): ChatAccess | null {
   const chat = getChatAccess(req, rawChatId);
   if (!chat) {
-    res.status(404).json({ success: false, error: "聊天不存在或无访问权限" });
+    res.status(404).json({ success: false, error: chatError(req, "聊天不存在或无访问权限", "Chat not found or access is denied") });
     return null;
   }
   return chat;
@@ -72,7 +75,7 @@ function requireChatManager(req: AuthRequest, res: any, rawChatId: unknown): Cha
   const chat = requireChatMember(req, res, rawChatId);
   if (!chat) return null;
   if (!['admin', 'owner'].includes(chat.member_role)) {
-    res.status(403).json({ success: false, error: "需要群管理权限" });
+    res.status(403).json({ success: false, error: chatError(req, "需要群管理权限", "Group management permission is required") });
     return null;
   }
   return chat;
@@ -96,19 +99,19 @@ chatRoutes.get("/", (req: AuthRequest, res) => {
       [req.user!.id, req.user!.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: chats });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.post("/", (req: AuthRequest, res) => {
   try {
     const { title, type, employee_ids } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: chatError(req, "标题必填", "Title is required") });
     const chatType = type || "group";
     const employeeIds = Array.isArray(employee_ids)
       ? [...new Set(employee_ids.map((id: unknown) => Number(id)).filter(id => Number.isSafeInteger(id) && id > 0))]
       : [];
     if (Array.isArray(employee_ids) && employeeIds.length !== employee_ids.length) {
-      return res.status(400).json({ success: false, error: "AI员工编号无效" });
+      return res.status(400).json({ success: false, error: chatError(req, "AI员工编号无效", "Invalid AI employee ID") });
     }
     if (employeeIds.length) {
       const placeholders = employeeIds.map(() => "?").join(",");
@@ -117,7 +120,7 @@ chatRoutes.post("/", (req: AuthRequest, res) => {
         [req.user!.tenant_id, ...employeeIds]
       ) as Array<{ id: number }>;
       if (existingEmployees.length !== employeeIds.length) {
-        return res.status(400).json({ success: false, error: "存在无效、停用或非本集团的AI员工" });
+        return res.status(400).json({ success: false, error: chatError(req, "存在无效、停用或非本集团的AI员工", "An AI employee is invalid, inactive, or outside the current group") });
       }
     }
     const result = dbRun(
@@ -132,7 +135,7 @@ chatRoutes.post("/", (req: AuthRequest, res) => {
       }
     }
     res.json({ success: true, data: { id: chatId } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.get("/:id", (req: AuthRequest, res) => {
@@ -140,17 +143,17 @@ chatRoutes.get("/:id", (req: AuthRequest, res) => {
     const chat = requireChatMember(req, res, req.params.id);
     if (!chat) return;
     res.json({ success: true, data: chat });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.put("/:id", (req: AuthRequest, res) => {
   try {
     if (!requireChatManager(req, res, req.params.id)) return;
     const { title } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: chatError(req, "标题必填", "Title is required") });
     dbRun("UPDATE chats SET title = ? WHERE id = ? AND tenant_id = ?", [title, req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.delete("/:id", (req: AuthRequest, res) => {
@@ -161,7 +164,7 @@ chatRoutes.delete("/:id", (req: AuthRequest, res) => {
     dbRun("DELETE FROM chat_members WHERE chat_id = ? AND tenant_id = ?", [chat.id, req.user!.tenant_id]);
     dbRun("DELETE FROM chats WHERE id = ? AND tenant_id = ?", [chat.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.get("/:id/messages", (req: AuthRequest, res) => {
@@ -186,7 +189,7 @@ chatRoutes.get("/:id/messages", (req: AuthRequest, res) => {
       return { ...msg, reactions, reply_to };
     });
     res.json({ success: true, data: { chat, messages: enrichedMessages } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // 判断用户是否在确认（结束讨论）
@@ -199,7 +202,7 @@ function isUserConfirming(content: string): boolean {
 chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
   try {
     const { content, reply_to_id } = req.body;
-    if (!content) return res.status(400).json({ success: false, error: "内容必填" });
+    if (!content) return res.status(400).json({ success: false, error: chatError(req, "内容必填", "Content is required") });
 
     const chat = requireChatMember(req, res, req.params.id);
     if (!chat) return;
@@ -483,7 +486,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
     res.json({ success: true, data: allMessages });
   } catch (err: any) {
     console.error("[Chat] 发送消息失败:", err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -518,7 +521,7 @@ chatRoutes.post("/:id/minutes", async (req: AuthRequest, res) => {
     res.json({ success: true, data: { minutes, messageId: insertResult.lastInsertRowid } });
   } catch (err: any) {
     console.error("[Chat] 生成会议纪要失败:", err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -531,7 +534,7 @@ chatRoutes.get("/:id/members", (req: AuthRequest, res) => {
       [chat.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: members });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.post("/:id/members", (req: AuthRequest, res) => {
@@ -539,18 +542,18 @@ chatRoutes.post("/:id/members", (req: AuthRequest, res) => {
     const chat = requireChatManager(req, res, req.params.id);
     if (!chat) return;
     const { user_id, employee_id, role } = req.body;
-    if (!user_id && !employee_id) return res.status(400).json({ success: false, error: "用户或员工ID必填" });
-    if (user_id && employee_id) return res.status(400).json({ success: false, error: "一次只能添加一个内部人类用户或一个AI员工" });
-    if (role && !["admin", "member"].includes(role)) return res.status(400).json({ success: false, error: "角色必须是 admin 或 member" });
-    if (user_id && !dbGet("SELECT 1 FROM users WHERE id = ? AND tenant_id = ?", [user_id, req.user!.tenant_id])) return res.status(404).json({ success: false, error: "内部用户不存在" });
-    if (employee_id && !dbGet("SELECT 1 FROM employees WHERE id = ? AND tenant_id = ? AND employee_type = 'ai' AND status = 'active'", [employee_id, req.user!.tenant_id])) return res.status(404).json({ success: false, error: "内部AI员工不存在或未启用" });
+    if (!user_id && !employee_id) return res.status(400).json({ success: false, error: chatError(req, "用户或员工ID必填", "A user or employee ID is required") });
+    if (user_id && employee_id) return res.status(400).json({ success: false, error: chatError(req, "一次只能添加一个内部人类用户或一个AI员工", "Add either one internal human user or one AI employee at a time") });
+    if (role && !["admin", "member"].includes(role)) return res.status(400).json({ success: false, error: chatError(req, "角色必须是 admin 或 member", "Role must be admin or member") });
+    if (user_id && !dbGet("SELECT 1 FROM users WHERE id = ? AND tenant_id = ?", [user_id, req.user!.tenant_id])) return res.status(404).json({ success: false, error: chatError(req, "内部用户不存在", "Internal user not found") });
+    if (employee_id && !dbGet("SELECT 1 FROM employees WHERE id = ? AND tenant_id = ? AND employee_type = 'ai' AND status = 'active'", [employee_id, req.user!.tenant_id])) return res.status(404).json({ success: false, error: chatError(req, "内部AI员工不存在或未启用", "Internal AI employee not found or inactive") });
     const existing = user_id
       ? dbGet("SELECT id FROM chat_members WHERE chat_id = ? AND user_id = ? AND tenant_id = ?", [chat.id, user_id, req.user!.tenant_id])
       : dbGet("SELECT id FROM chat_members WHERE chat_id = ? AND employee_id = ? AND tenant_id = ?", [chat.id, employee_id, req.user!.tenant_id]);
-    if (existing) return res.status(409).json({ success: false, error: "成员已在群内" });
+    if (existing) return res.status(409).json({ success: false, error: chatError(req, "成员已在群内", "Member is already in the group") });
     dbRun("INSERT INTO chat_members (chat_id, user_id, employee_id, role, tenant_id, joined_at) VALUES (?, ?, ?, ?, ?, datetime('now'))", [chat.id, user_id || null, employee_id || null, role || "member", req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.delete("/:id/members/:memberId", (req: AuthRequest, res) => {
@@ -559,7 +562,7 @@ chatRoutes.delete("/:id/members/:memberId", (req: AuthRequest, res) => {
     if (!chat) return;
     dbRun("DELETE FROM chat_members WHERE id = ? AND chat_id = ? AND tenant_id = ?", [req.params.memberId, chat.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.post("/:id/messages/:messageId/reactions", (req: AuthRequest, res) => {
@@ -567,14 +570,14 @@ chatRoutes.post("/:id/messages/:messageId/reactions", (req: AuthRequest, res) =>
     const chat = requireChatMember(req, res, req.params.id);
     if (!chat) return;
     const { emoji } = req.body;
-    if (!emoji) return res.status(400).json({ success: false, error: "表情必填" });
+    if (!emoji) return res.status(400).json({ success: false, error: chatError(req, "表情必填", "Reaction emoji is required") });
     const message = dbGet("SELECT id FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [req.params.messageId, chat.id, req.user!.tenant_id]);
-    if (!message) return res.status(404).json({ success: false, error: "消息不存在" });
+    if (!message) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
     const existing = dbGet("SELECT id FROM message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ? AND tenant_id = ?", [req.params.messageId, req.user!.id, emoji, req.user!.tenant_id]);
     if (existing) { dbRun("DELETE FROM message_reactions WHERE id = ? AND tenant_id = ?", [(existing as any).id, req.user!.tenant_id]); }
     else { dbRun("INSERT INTO message_reactions (message_id, user_id, emoji, tenant_id) VALUES (?, ?, ?, ?)", [req.params.messageId, req.user!.id, emoji, req.user!.tenant_id]); }
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.put("/:id/messages/:messageId", (req: AuthRequest, res) => {
@@ -582,13 +585,13 @@ chatRoutes.put("/:id/messages/:messageId", (req: AuthRequest, res) => {
     const chat = requireChatMember(req, res, req.params.id);
     if (!chat) return;
     const { content } = req.body;
-    if (!content) return res.status(400).json({ success: false, error: "内容必填" });
+    if (!content) return res.status(400).json({ success: false, error: chatError(req, "内容必填", "Content is required") });
     const msg = dbGet("SELECT * FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [req.params.messageId, chat.id, req.user!.tenant_id]) as any;
-    if (!msg) return res.status(404).json({ success: false, error: "消息不存在" });
-    if (msg.sender_type !== "user" || (msg.sender_id !== req.user!.id && !['admin', 'owner'].includes(chat.member_role))) return res.status(403).json({ success: false, error: "无权编辑此消息" });
+    if (!msg) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
+    if (msg.sender_type !== "user" || (msg.sender_id !== req.user!.id && !['admin', 'owner'].includes(chat.member_role))) return res.status(403).json({ success: false, error: chatError(req, "无权编辑此消息", "You are not allowed to edit this message") });
     dbRun("UPDATE messages SET content = ? WHERE id = ? AND chat_id = ? AND tenant_id = ?", [content, msg.id, chat.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.post("/:id/messages/:messageId/import-knowledge", (req: AuthRequest, res) => {
@@ -597,8 +600,8 @@ chatRoutes.post("/:id/messages/:messageId/import-knowledge", (req: AuthRequest, 
     if (!chatAccess) return;
     // 正式知识中心尚未具备 V0.80 所需的定密、审核、版本和撤销机制，
     // 因此 V0.50 不允许把群聊材料直接写入可检索知识库。
-    res.status(409).json({ success: false, error: "群聊材料需在 V0.80 知识审核流程上线后方可发布" });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+    res.status(409).json({ success: false, error: chatError(req, "群聊材料需在 V0.80 知识审核流程上线后方可发布", "Group chat material can be published after the V0.80 knowledge review flow is available") });
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 chatRoutes.get("/:id/messages/:messageId/export", (req: AuthRequest, res) => {
@@ -607,7 +610,7 @@ chatRoutes.get("/:id/messages/:messageId/export", (req: AuthRequest, res) => {
     if (!chat) return;
     const format = (req.query.format as string) || "md";
     const msg = dbGet("SELECT * FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [req.params.messageId, chat.id, req.user!.tenant_id]) as any;
-    if (!msg) return res.status(404).json({ success: false, error: "消息不存在" });
+    if (!msg) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
     const filename = `会议纪要_${new Date().toISOString().slice(0, 10)}_${chat?.title || "讨论"}`;
 
     if (format === "md") {
@@ -658,9 +661,9 @@ chatRoutes.get("/:id/messages/:messageId/export", (req: AuthRequest, res) => {
     } else if (format === "pdf") {
       generatePdf(msg.content, filename, res);
     } else {
-      res.status(400).json({ success: false, error: "不支持的格式" });
+      res.status(400).json({ success: false, error: chatError(req, "不支持的格式", "Unsupported format") });
     }
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 function generatePdf(content: string, filename: string, res: any) {
@@ -820,7 +823,7 @@ chatRoutes.put("/:id/announcement", (req: AuthRequest, res) => {
     dbRun("UPDATE chats SET announcement = ? WHERE id = ? AND tenant_id = ?", [announcement || null, chatId, req.user!.tenant_id]);
     broadcastToChat(chatId, { type: "announcement_updated", chatId, announcement });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // 置顶/取消置顶消息
@@ -830,13 +833,13 @@ chatRoutes.post("/:id/messages/:messageId/pin", (req: AuthRequest, res) => {
     if (!chat) return;
     const chatId = chat.id;
     const messageId = parseInt(req.params.messageId);
-    if (!dbGet("SELECT 1 FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [messageId, chatId, req.user!.tenant_id])) return res.status(404).json({ success: false, error: "消息不存在" });
+    if (!dbGet("SELECT 1 FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [messageId, chatId, req.user!.tenant_id])) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
 
     const newPinned = chat.pinned_message_id === messageId ? null : messageId;
     dbRun("UPDATE chats SET pinned_message_id = ? WHERE id = ? AND tenant_id = ?", [newPinned, chatId, req.user!.tenant_id]);
     broadcastToChat(chatId, { type: "message_pinned", chatId, pinned_message_id: newPinned });
     res.json({ success: true, data: { pinned_message_id: newPinned } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // 软删除消息
@@ -847,19 +850,19 @@ chatRoutes.delete("/:id/messages/:messageId", (req: AuthRequest, res) => {
     const chatId = chat.id;
     const messageId = parseInt(req.params.messageId);
     const msg = dbGet("SELECT * FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [messageId, chatId, req.user!.tenant_id]) as any;
-    if (!msg) return res.status(404).json({ success: false, error: "消息不存在" });
+    if (!msg) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
 
     const isOwner = msg.sender_type === "user" && msg.sender_id === req.user!.id;
     const isAdmin = ['admin', 'owner'].includes(chat.member_role);
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ success: false, error: "无权删除此消息" });
+      return res.status(403).json({ success: false, error: chatError(req, "无权删除此消息", "You are not allowed to delete this message") });
     }
 
     dbRun("UPDATE messages SET deleted_at = datetime('now'), content = '[消息已删除]' WHERE id = ? AND chat_id = ? AND tenant_id = ?", [messageId, chatId, req.user!.tenant_id]);
     broadcastToChat(chatId, { type: "message_deleted", chatId, messageId });
     logActivity({ userId: req.user!.id, action: "message_deleted", entityType: "chat", entityId: chatId, tenantId: req.user!.tenant_id });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // 成员角色管理（提升/降级管理员）
@@ -871,17 +874,17 @@ chatRoutes.put("/:id/members/:memberId/role", (req: AuthRequest, res) => {
     const memberId = parseInt(req.params.memberId);
     const { role } = req.body;
     if (!role || !["admin", "member"].includes(role)) {
-      return res.status(400).json({ success: false, error: "角色必须是 admin 或 member" });
+      return res.status(400).json({ success: false, error: chatError(req, "角色必须是 admin 或 member", "Role must be admin or member") });
     }
 
     const target = dbGet("SELECT * FROM chat_members WHERE id = ? AND chat_id = ? AND tenant_id = ?", [memberId, chatId, req.user!.tenant_id]) as any;
-    if (!target) return res.status(404).json({ success: false, error: "成员不存在" });
+    if (!target) return res.status(404).json({ success: false, error: chatError(req, "成员不存在", "Member not found") });
 
     dbRun("UPDATE chat_members SET role = ? WHERE id = ? AND chat_id = ? AND tenant_id = ?", [role, memberId, chatId, req.user!.tenant_id]);
     broadcastToChat(chatId, { type: "member_role_changed", chatId, memberId, role });
     logActivity({ userId: req.user!.id, action: "member_role_changed", entityType: "chat", entityId: chatId, details: JSON.stringify({ memberId, role }), tenantId: req.user!.tenant_id });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // @全体成员
@@ -891,7 +894,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
     if (!chatAccess) return;
     const chatId = chatAccess.id;
     const { content } = req.body;
-    if (!content) return res.status(400).json({ success: false, error: "内容必填" });
+    if (!content) return res.status(400).json({ success: false, error: chatError(req, "内容必填", "Content is required") });
 
     const fullContent = `@全体成员 ${content}`;
     const result = dbRun(
@@ -1027,7 +1030,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
 
     const allMessages = dbAll("SELECT * FROM messages WHERE chat_id = ? AND tenant_id = ? ORDER BY created_at ASC", [chatId, req.user!.tenant_id]);
     res.json({ success: true, data: allMessages });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });
 
 // 更新已读标记
@@ -1037,11 +1040,11 @@ chatRoutes.post("/:id/read-marker", (req: AuthRequest, res) => {
     if (!chat) return;
     const chatId = chat.id;
     const { message_id } = req.body;
-    if (message_id && !dbGet("SELECT 1 FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [message_id, chatId, req.user!.tenant_id])) return res.status(404).json({ success: false, error: "消息不存在" });
+    if (message_id && !dbGet("SELECT 1 FROM messages WHERE id = ? AND chat_id = ? AND tenant_id = ?", [message_id, chatId, req.user!.tenant_id])) return res.status(404).json({ success: false, error: chatError(req, "消息不存在", "Message not found") });
     dbRun(
       "INSERT INTO chat_read_markers (chat_id, user_id, last_read_message_id, last_read_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(chat_id, user_id) DO UPDATE SET last_read_message_id = MAX(last_read_message_id, ?), last_read_at = datetime('now')",
       [chatId, req.user!.id, message_id || 0, message_id || 0]
     );
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: chatError(req, "聊天服务暂时不可用，请稍后重试", "Chat service is temporarily unavailable. Please try again") }); }
 });

@@ -6,6 +6,7 @@ import { useAuthStore } from "../stores/auth";
 import { useChatWebSocket } from "../hooks/useWebSocket";
 import Avatar from "../components/Avatar";
 import MentionInput from "../components/MentionInput";
+import { useLocale } from "../i18n";
 
 interface Chat { id: number; title: string; type: string; last_message?: string; last_sender?: string; member_count?: number; unread_count?: number; announcement?: string; pinned_message_id?: number; }
 interface ChatMember { id: number; user_id: number | null; employee_id: number | null; role: string; user_name?: string; employee_name?: string; avatar_emoji?: string; employee_role?: string; agent_type?: string; }
@@ -41,6 +42,7 @@ const QUICK_REACTIONS = ["👍", "❤️", "😊", "🎉", "👏", "🤔"];
 
 export default function ChatPage() {
   const { user } = useAuthStore();
+  const { t } = useLocale();
   const [chats, setChats] = useState<Chat[]>([]);
   const [active, setActive] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -166,7 +168,7 @@ export default function ChatPage() {
 
   // P22: 删除消息
   const deleteMessage = async (messageId: number) => {
-    if (!active || !confirm("确认删除这条消息？")) return;
+    if (!active || !confirm(t("确认删除这条消息？", "Delete this message?"))) return;
     await authFetch(`/api/chats/${active.id}/messages/${messageId}`, { method: "DELETE" });
     loadMessages();
   };
@@ -272,7 +274,7 @@ export default function ChatPage() {
       selectChat(existingChat);
       return;
     }
-    const title = `与${emp.name}的对话`;
+    const title = t("与" + emp.name + "的对话", "Chat with " + emp.name);
     const r = await authFetch("/api/chats", {
       method: "POST",
       body: JSON.stringify({ title, type: "single", employee_ids: [emp.id] }),
@@ -291,7 +293,7 @@ export default function ChatPage() {
 
   const createGroup = async () => {
     if (selectedEmployees.length === 0) return;
-    const title = groupName.trim() || `群聊：${selectedEmployees.map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join('、')}`;
+    const title = groupName.trim() || t("群聊：" + selectedEmployees.map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join("、"), "Group: " + selectedEmployees.map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join(", "));
     const r = await authFetch("/api/chats", {
       method: "POST",
       body: JSON.stringify({ title, type: "group", employee_ids: selectedEmployees }),
@@ -328,7 +330,7 @@ export default function ChatPage() {
     setInput("");
     setSending(true);
     setReplyTo(null);
-    const tempMsg: Msg = { id: Date.now(), sender_type: "user", sender_name: user?.nickname || "我", content: text, reply_to_id: replyingTo?.id, created_at: new Date().toISOString() };
+    const tempMsg: Msg = { id: Date.now(), sender_type: "user", sender_name: user?.nickname || t("我", "Me"), content: text, reply_to_id: replyingTo?.id, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, tempMsg]);
     try {
       // 检测 @全体成员 前缀，自动路由到 /at-all 端点
@@ -367,7 +369,7 @@ export default function ChatPage() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-    alert("已复制到剪贴板");
+    alert(t("已复制到剪贴板", "Copied to clipboard"));
   };
 
   const handleForward = (msg: Msg) => {
@@ -378,7 +380,7 @@ export default function ChatPage() {
 
   const doForward = async (targetChatId: number, targetName?: string) => {
     if (!forwardMsg) return;
-    const label = targetName ? `[转发给${targetName}]` : "[转发]";
+    const label = targetName ? t("[转发给" + targetName + "]", "[Forwarded to " + targetName + "]") : t("[转发]", "[Forwarded]");
     await authFetch(`/api/chats/${targetChatId}/messages`, {
       method: "POST",
       body: JSON.stringify({ content: `${label} ${forwardMsg.content}`, sender_name: user?.nickname }),
@@ -386,7 +388,7 @@ export default function ChatPage() {
     setForwardMsg(null);
     setForwardSearch("");
     setForwardResults([]);
-    alert("已转发");
+    alert(t("已转发", "Forwarded"));
   };
 
   // Forward: search employees and find/create target chat
@@ -399,7 +401,7 @@ export default function ChatPage() {
       return;
     }
     // Create new single chat then forward
-    const title = `与${emp.name}的对话`;
+    const title = t("与" + emp.name + "的对话", "Chat with " + emp.name);
     const r = await authFetch("/api/chats", {
       method: "POST",
       body: JSON.stringify({ title, type: "single", employee_ids: [emp.id] }),
@@ -409,25 +411,25 @@ export default function ChatPage() {
       setChats(prev => [d.data, ...prev]);
       await doForward(d.data.id, emp.name);
     } else {
-      alert("创建会话失败");
+      alert(t("创建会话失败", "Unable to create chat"));
     }
   };
 
   const handleSaveKnowledge = async (msg: Msg) => {
     setSavingKnowledge(msg.id);
     try {
-      const title = `${active?.title || "聊天"} - ${msg.sender_name || "消息"} - ${new Date(msg.created_at).toLocaleDateString()}`;
+      const title = (active?.title || t("聊天", "Chat")) + " - " + (msg.sender_name || t("消息", "Message")) + " - " + new Date(msg.created_at).toLocaleDateString();
       const r = await authFetch("/api/knowledge", {
         method: "POST",
-        body: JSON.stringify({ title, content: msg.content, source: `chat:${active?.id}`, tags: "聊天记录,转发" }),
+        body: JSON.stringify({ title, content: msg.content, source: `chat:${active?.id}`, tags: t("聊天记录,转发", "chat history,forwarded") }),
       });
       const d = await r.json();
       if (d.success) {
-        alert("已存入知识库");
+        alert(t("已存入知识库", "Saved to knowledge base"));
       } else {
-        alert(d.error || "保存失败");
+        alert(d.error || t("保存失败", "Save failed"));
       }
-    } catch { alert("保存失败，请检查网络连接"); }
+    } catch { alert(t("保存失败，请检查网络连接", "Save failed. Check your network connection.")); }
     setSavingKnowledge(null);
   };
 
@@ -437,7 +439,7 @@ export default function ChatPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `消息_${msg.id}.${format}`;
+    a.download = t("消息_", "message_") + msg.id + "." + format;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -482,7 +484,7 @@ export default function ChatPage() {
     const blob = await r.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `会议纪要-${new Date().toISOString().slice(0, 10)}.${format}`;
+    a.download = t("会议纪要-", "meeting-minutes-") + new Date().toISOString().slice(0, 10) + "." + format;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -565,7 +567,7 @@ export default function ChatPage() {
     if (isAssign) {
       return (
         <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded">
-          <div className="text-xs font-semibold text-purple-700 mb-1">📋 任务分配</div>
+          <div className="text-xs font-semibold text-purple-700 mb-1">{t("📋 任务分配", "📋 Task assignment")}</div>
           <div className="text-sm text-purple-900 whitespace-pre-wrap">{highlightMentions(msg.content.replace("📋 **任务分配**\n\n", ""))}</div>
         </div>
       );
@@ -574,7 +576,7 @@ export default function ChatPage() {
     if (isReview) {
       return (
         <div className="px-3 py-2 bg-cyan-50 border border-cyan-200 rounded">
-          <div className="text-xs font-semibold text-cyan-700 mb-1">🔍 点评</div>
+          <div className="text-xs font-semibold text-cyan-700 mb-1">{t("🔍 点评", "🔍 Review")}</div>
           <div className="text-sm text-cyan-900 whitespace-pre-wrap">{highlightMentions(msg.content)}</div>
         </div>
       );
@@ -583,10 +585,10 @@ export default function ChatPage() {
     if (isSummary) {
       return (
         <div className="px-3 py-2 bg-green-50 border border-green-200 rounded">
-          <div className="text-xs font-semibold text-green-700 mb-1">📊 总结汇报</div>
+          <div className="text-xs font-semibold text-green-700 mb-1">{t("📊 总结汇报", "📊 Summary")}</div>
           <div className="text-sm text-green-900 whitespace-pre-wrap">{highlightMentions(msg.content.replace("📊 **总结汇报**\n\n", ""))}</div>
           <div className="mt-2 pt-2 border-t border-green-200 flex items-center gap-2">
-            <span className="text-[10px] text-green-600">请审核，如需修改请回复，确认请回复"确认"</span>
+            <span className="text-[10px] text-green-600">{t("请审核，如需修改请回复，确认请回复“确认”", "Please review. Reply with changes if needed, or reply “Confirm” to approve.")}</span>
           </div>
         </div>
       );
@@ -599,40 +601,40 @@ export default function ChatPage() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <FileText size={14} className="text-blue-600" />
-              <span className="text-xs font-semibold text-blue-700">会议纪要</span>
+              <span className="text-xs font-semibold text-blue-700">{t("会议纪要", "Meeting minutes")}</span>
             </div>
             <div className="flex items-center gap-1">
               {isEditing ? (
                 <>
                   <button onClick={() => saveEditedMinutes(msg.id)} className="px-2 py-1 text-[10px] bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-1">
-                    <Check size={10} /> 保存
+                    <Check size={10} /> {t("保存", "Save")}
                   </button>
                   <button onClick={() => setEditingMinutesId(null)} className="px-2 py-1 text-[10px] bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center gap-1">
-                    <X size={10} /> 取消
+                    <X size={10} /> {t("取消", "Cancel")}
                   </button>
                 </>
               ) : (
                 <>
                   <button onClick={() => { setEditingMinutesId(msg.id); setEditingMinutesContent(msg.content); }} className="px-2 py-1 text-[10px] bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center gap-1">
-                    <Edit2 size={10} /> 编辑
+                    <Edit2 size={10} /> {t("编辑", "Edit")}
                   </button>
                   <button onClick={() => copyToClipboard(msg.content)} className="px-2 py-1 text-[10px] bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center gap-1">
-                    <Copy size={10} /> 复制
+                    <Copy size={10} /> {t("复制", "Copy")}
                   </button>
                   <div className="relative">
                     <button onClick={() => setShowExportMenu(showExportMenu === msg.id ? null : msg.id)} className="px-2 py-1 text-[10px] bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center gap-1">
-                      <Download size={10} /> 导出 <ChevronDown size={8} />
+                      <Download size={10} /> {t("导出", "Export")} <ChevronDown size={8} />
                     </button>
                     {showExportMenu === msg.id && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-border shadow-lg rounded z-20 py-1 min-w-[80px]">
-                        <button onClick={() => exportMinutes(msg.id, "md")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.md 文档</button>
-                        <button onClick={() => exportMinutes(msg.id, "docx")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.docx 文档</button>
-                        <button onClick={() => exportMinutes(msg.id, "pdf")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.pdf 文档</button>
+                        <button onClick={() => exportMinutes(msg.id, "md")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.md {t("文档", "document")}</button>
+                        <button onClick={() => exportMinutes(msg.id, "docx")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.docx {t("文档", "document")}</button>
+                        <button onClick={() => exportMinutes(msg.id, "pdf")} className="w-full px-3 py-1.5 text-[10px] text-left hover:bg-blue-50 text-blue-700">.pdf {t("文档", "document")}</button>
                       </div>
                     )}
                   </div>
                   <button onClick={() => { setShowImportModal({ messageId: msg.id, content: msg.content }); setImportKnowledgeTitle(""); }} className="px-2 py-1 text-[10px] bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1">
-                    <FileText size={10} /> 入知识库
+                    <FileText size={10} /> {t("入知识库", "Save to knowledge")}
                   </button>
                 </>
               )}
@@ -676,7 +678,7 @@ export default function ChatPage() {
           <div className="flex items-start gap-2 mb-1.5 px-2 py-1 rounded bg-bg border-l-2 border-primary/40 text-text-muted">
             <Reply size={12} className="shrink-0 mt-0.5 text-primary/60" />
             <div className="min-w-0 text-[11px] leading-relaxed">
-              <span className="font-medium text-text">{replyRef.sender_name || "未知"}</span>
+              <span className="font-medium text-text">{replyRef.sender_name || t("未知", "Unknown")}</span>
               <span className="mx-1">:</span>
               <span className="line-clamp-2">{replyRef.content.replace(/\*\*/g, "").replace(/`/g, "").substring(0, 80)}</span>
             </div>
@@ -763,7 +765,7 @@ export default function ChatPage() {
                           <span className="text-[8px] font-bold px-1 py-0.5 bg-emerald-500/10 text-emerald-500 rounded shrink-0">AI</span>
                         )}
                         <span className={`w-2 h-2 rounded-full shrink-0 ${emp.is_online ? "bg-green-500" : "bg-gray-300"}`}
-                          title={emp.is_online ? "在线" : "离线"} />
+                          title={emp.is_online ? t("在线", "Online") : t("离线", "Offline")} />
                       </div>
                       <p className="text-[10px] text-text-muted truncate">{emp.role}</p>
                     </div>
@@ -789,14 +791,14 @@ export default function ChatPage() {
             <button
               onClick={() => { setLeftTab("employees"); loadEmployees(); }}
               className={`w-9 h-9 rounded flex items-center justify-center transition-colors ${leftTab === "employees" ? "bg-primary text-white" : "text-text-muted hover:text-text hover:bg-bg"}`}
-              title="员工列表"
+              title={t("员工列表", "Employee list")}
             >
               <Users size={16} />
             </button>
             <button
               onClick={() => setLeftTab("chats")}
               className={`w-9 h-9 rounded flex items-center justify-center transition-colors ${leftTab === "chats" ? "bg-primary text-white" : "text-text-muted hover:text-text hover:bg-bg"}`}
-              title="会话列表"
+              title={t("会话列表", "Chat list")}
             >
               <MessageCircle size={16} />
             </button>
@@ -844,7 +846,7 @@ export default function ChatPage() {
             <button
               onClick={() => { setShowCreateGroup(true); loadEmployees(); }}
               className="w-9 h-9 rounded bg-primary text-white flex items-center justify-center hover:opacity-90"
-              title="创建群组"
+              title={t("创建群组", "Create group")}
             >
               <UserPlus size={16} />
             </button>
@@ -857,19 +859,19 @@ export default function ChatPage() {
     return (
       <>
         <div className="px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-text mb-2">沟通协作</h2>
+          <h2 className="text-sm font-semibold text-text mb-2">{t("沟通协作", "Collaboration")}</h2>
           <div className="flex items-center gap-1 bg-bg rounded p-0.5">
             <button
               onClick={() => { setLeftTab("employees"); loadEmployees(); }}
               className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${leftTab === "employees" ? "bg-primary text-white" : "text-text-muted hover:text-text"}`}
             >
-              员工列表
+              {t("员工列表", "Employee list")}
             </button>
             <button
               onClick={() => setLeftTab("chats")}
               className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${leftTab === "chats" ? "bg-primary text-white" : "text-text-muted hover:text-text"}`}
             >
-              会话列表
+              {t("会话列表", "Chat list")}
             </button>
           </div>
         </div>
@@ -905,7 +907,7 @@ export default function ChatPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenamingChat(chat); setNewChatName(chat.title); }}
                     className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg text-text-muted"
-                    title="重命名"
+                    title={t("重命名", "Rename")}
                   >
                     <Edit2 size={12} />
                   </button>
@@ -920,7 +922,7 @@ export default function ChatPage() {
             onClick={() => { setShowCreateGroup(true); loadEmployees(); }}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-white text-xs rounded hover:opacity-90"
           >
-            <UserPlus size={14} /> 创建群组
+            <UserPlus size={14} /> {t("创建群组", "Create group")}
           </button>
         </div>
       </>
@@ -941,7 +943,7 @@ export default function ChatPage() {
           data-testid="chat-sidebar-toggle"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bg-card border border-border flex items-center justify-center text-text-muted hover:text-primary hover:border-primary z-20 shadow-sm transition-colors"
-          title={sidebarCollapsed ? "展开侧边栏" : "折叠侧边栏"}
+          title={sidebarCollapsed ? t("展开侧边栏", "Expand sidebar") : t("折叠侧边栏", "Collapse sidebar")}
         >
           <ChevronLeft size={12} className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`} />
         </button>
@@ -962,10 +964,10 @@ export default function ChatPage() {
                 onClick={() => setMobileSidebarOpen(true)}
                 className="md:hidden mb-4 mx-auto flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-xs rounded hover:opacity-90"
               >
-                <MessageCircle size={14} /> 打开列表
+                <MessageCircle size={14} /> {t("打开列表", "Open list")}
               </button>
               <MessageSquare size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">选择员工开始单聊，或创建群组进行协作</p>
+              <p className="text-sm">{t("选择员工开始单聊，或创建群组进行协作", "Choose an employee to start a direct chat, or create a group to collaborate.")}</p>
             </div>
           </div>
         ) : (
@@ -976,7 +978,7 @@ export default function ChatPage() {
                 <button
                   onClick={() => setMobileSidebarOpen(true)}
                   className="md:hidden p-1.5 rounded hover:bg-bg text-text-muted shrink-0"
-                  title="打开会话列表"
+                  title={t("打开会话列表", "Open chat list")}
                 >
                   <MessageCircle size={16} />
                 </button>
@@ -985,7 +987,7 @@ export default function ChatPage() {
                   <button
                     onClick={() => setSidebarCollapsed(false)}
                     className="hidden md:flex p-1.5 rounded hover:bg-bg text-text-muted shrink-0"
-                    title="展开侧边栏"
+                    title={t("展开侧边栏", "Expand sidebar")}
                   >
                     <PanelLeftOpen size={16} />
                   </button>
@@ -996,7 +998,7 @@ export default function ChatPage() {
                 <button
                   onClick={() => { setRenamingChat(active); setNewChatName(active.title); }}
                   className="p-1 rounded hover:bg-bg text-text-muted shrink-0"
-                  title="重命名"
+                  title={t("重命名", "Rename")}
                 >
                   <Edit2 size={12} />
                 </button>
@@ -1004,13 +1006,13 @@ export default function ChatPage() {
               {active.type === "group" && (
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => { setShowMembersPanel(true); loadMembersForChat(active.id); }}
-                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-muted bg-bg border border-border rounded hover:bg-bg-hover" title="成员管理">
-                    <Users size={12} /> 成员
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-muted bg-bg border border-border rounded hover:bg-bg-hover" title={t("成员管理", "Manage members")}>
+                    <Users size={12} /> {t("成员", "Members")}
                   </button>
                   <button onClick={generateMinutes} disabled={generatingMinutes}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100 disabled:opacity-50">
                     {generatingMinutes ? <Loader2 size={12} className="animate-spin" /> : <ClipboardCheck size={12} />}
-                    会议纪要
+                    {t("会议纪要", "Meeting minutes")}
                   </button>
                 </div>
               )}
@@ -1023,7 +1025,7 @@ export default function ChatPage() {
                 <span className="text-xs text-amber-800 flex-1 truncate">{active.announcement}</span>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => { setEditingAnnouncement(true); setAnnouncementText(active.announcement || ""); }}
-                    className="text-[10px] text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-100">编辑</button>
+                    className="text-[10px] text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-100">{t("编辑", "Edit")}</button>
                   <button onClick={() => saveAnnouncementWithClear()}
                     className="text-[10px] text-amber-400 hover:text-amber-600 px-1 py-0.5">×</button>
                 </div>
@@ -1033,7 +1035,7 @@ export default function ChatPage() {
             {active.type === "group" && !active.announcement && (
               <button onClick={() => { setEditingAnnouncement(true); setAnnouncementText(""); }}
                 className="px-5 py-1.5 text-[10px] text-text-muted hover:text-text hover:bg-bg flex items-center gap-1.5 border-b border-border">
-                <Megaphone size={11} /> 设置群公告...
+                <Megaphone size={11} /> {t("设置群公告...", "Set group announcement...")}
               </button>
             )}
 
@@ -1048,7 +1050,7 @@ export default function ChatPage() {
                       <span className="text-primary font-medium">{pinnedMsg.sender_name}:</span> {pinnedMsg.content.substring(0, 80)}
                     </span>
                     <button onClick={() => togglePin(active.pinned_message_id!)}
-                      className="text-[10px] text-text-muted hover:text-text px-1">取消置顶</button>
+                      className="text-[10px] text-text-muted hover:text-text px-1">{t("取消置顶", "Unpin")}</button>
                   </div>
                 ) : null;
               })()
@@ -1101,7 +1103,7 @@ export default function ChatPage() {
                 return (
                   <div key={msg.id} className={`group relative flex gap-3 ${isUser ? "flex-row-reverse" : ""} py-2 px-2 rounded hover:bg-bg/50`}>
                     <div className="w-9 h-9 rounded flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: isUser ? "var(--primary)" : color }}>
-                      {isUser ? (user?.nickname?.[0] || "我") : <Bot size={14} />}
+                      {isUser ? (user?.nickname?.[0] || t("我", "Me")) : <Bot size={14} />}
                     </div>
                     <div className={`max-w-[80%] ${isUser ? "items-end" : ""}`}>
                       {!isUser && msg.sender_name && <p className="text-[10px] mb-1 font-medium" style={{ color }}>{msg.sender_name}</p>}
@@ -1110,14 +1112,14 @@ export default function ChatPage() {
                         {isLong && !isExpanded && (
                           <div className="absolute bottom-0 left-0 right-0 h-16 flex items-end justify-center pb-2" style={{ background: 'linear-gradient(to top, var(--bg-card, white) 0%, transparent 100%)' }}>
                             <button onClick={() => toggleExpand(msg.id)} className="text-xs text-primary hover:underline font-medium">
-                              展开全文 ↓
+                              {t("展开全文 ↓", "Show full message ↓")}
                             </button>
                           </div>
                         )}
                       </div>
                       {isLong && isExpanded && (
                         <button onClick={() => toggleExpand(msg.id)} className="text-xs text-primary hover:underline mt-1 font-medium">
-                          收起 ↑
+                          {t("收起 ↑", "Collapse ↑")}
                         </button>
                       )}
                       {msg.reactions && msg.reactions.length > 0 && (
@@ -1131,16 +1133,16 @@ export default function ChatPage() {
                       )}
                     </div>
                     <div className={`absolute top-1 ${isUser ? "left-1" : "right-1"} opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-bg-card border border-border rounded-lg shadow-sm px-1 py-0.5`}>
-                      <button onClick={() => handleCopy(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="复制"><Copy size={12} /></button>
-                      <button onClick={() => handleForward(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="转发"><Forward size={12} /></button>
-                      <button onClick={() => handleSaveKnowledge(msg)} disabled={savingKnowledge === msg.id} className="p-1.5 rounded hover:bg-bg text-text-muted disabled:opacity-50" title="存入知识库">{savingKnowledge === msg.id ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}</button>
-                      <button onClick={() => setShowExportMenu(showExportMenu === msg.id ? null : msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="导出"><Download size={12} /></button>
-                      <button onClick={() => setShowReactions(showReactions === msg.id ? null : msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="表情"><Smile size={12} /></button>
-                      <button onClick={() => setReplyTo(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="回复"><Reply size={12} /></button>
+                      <button onClick={() => handleCopy(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("复制", "Copy")}><Copy size={12} /></button>
+                      <button onClick={() => handleForward(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("转发", "Forward")}><Forward size={12} /></button>
+                      <button onClick={() => handleSaveKnowledge(msg)} disabled={savingKnowledge === msg.id} className="p-1.5 rounded hover:bg-bg text-text-muted disabled:opacity-50" title={t("存入知识库", "Save to knowledge")}>{savingKnowledge === msg.id ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}</button>
+                      <button onClick={() => setShowExportMenu(showExportMenu === msg.id ? null : msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("导出", "Export")}><Download size={12} /></button>
+                      <button onClick={() => setShowReactions(showReactions === msg.id ? null : msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("表情", "React")}><Smile size={12} /></button>
+                      <button onClick={() => setReplyTo(msg)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("回复", "Reply")}><Reply size={12} /></button>
                       {active.type === "group" && (
                         <>
-                          <button onClick={() => togglePin(msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title="置顶"><Pin size={12} /></button>
-                          <button onClick={() => deleteMessage(msg.id)} className="p-1.5 rounded hover:bg-bg text-red-400 hover:text-red-600" title="删除"><Trash2 size={12} /></button>
+                          <button onClick={() => togglePin(msg.id)} className="p-1.5 rounded hover:bg-bg text-text-muted" title={t("置顶", "Pin")}><Pin size={12} /></button>
+                          <button onClick={() => deleteMessage(msg.id)} className="p-1.5 rounded hover:bg-bg text-red-400 hover:text-red-600" title={t("删除", "Delete")}><Trash2 size={12} /></button>
                         </>
                       )}
                     </div>
@@ -1153,8 +1155,8 @@ export default function ChatPage() {
                     )}
                     {showExportMenu === msg.id && (
                       <div className={`absolute ${isUser ? "left-1" : "right-1"} top-9 bg-bg-card border border-border shadow-lg p-1 z-10 rounded`}>
-                        <button onClick={() => { handleExportMsg(msg, "md"); setShowExportMenu(null); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-bg rounded">导出为 Markdown</button>
-                        <button onClick={() => { handleExportMsg(msg, "txt"); setShowExportMenu(null); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-bg rounded">导出为 TXT</button>
+                        <button onClick={() => { handleExportMsg(msg, "md"); setShowExportMenu(null); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-bg rounded">{t("导出为 Markdown", "Export as Markdown")}</button>
+                        <button onClick={() => { handleExportMsg(msg, "txt"); setShowExportMenu(null); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-bg rounded">{t("导出为 TXT", "Export as TXT")}</button>
                       </div>
                     )}
                   </div>
@@ -1163,7 +1165,7 @@ export default function ChatPage() {
               {sending && (
                 <div className="flex gap-3 py-2 px-2">
                   <div className="w-9 h-9 rounded bg-gray-200 flex items-center justify-center"><Loader2 size={14} className="animate-spin text-text-muted" /></div>
-                  <div className="flex items-center gap-2 text-xs text-text-muted"><span>AI正在思考...</span></div>
+                  <div className="flex items-center gap-2 text-xs text-text-muted"><span>{t("AI正在思考...", "AI is thinking...")}</span></div>
                 </div>
               )}
               <div ref={msgEnd} />
@@ -1173,7 +1175,7 @@ export default function ChatPage() {
               {replyTo && (
                 <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-bg rounded">
                   <Reply size={12} className="text-text-muted" />
-                  <span className="text-[11px] text-text-muted truncate flex-1">回复 {replyTo.sender_name}: {replyTo.content.substring(0, 50)}...</span>
+                  <span className="text-[11px] text-text-muted truncate flex-1">{t("回复 ", "Reply to ") + replyTo.sender_name + ": " + replyTo.content.substring(0, 50) + "..."}</span>
                   <button onClick={() => setReplyTo(null)} className="text-text-muted hover:text-text px-1.5">×</button>
                 </div>
               )}
@@ -1182,7 +1184,7 @@ export default function ChatPage() {
                   value={input}
                   onChange={setInput}
                   onSend={handleSend}
-                  placeholder="输入消息... @成员可提及, AI员工将智能回复"
+                  placeholder={t("输入消息... @成员可提及, AI员工将智能回复", "Write a message... mention members with @, and AI employees can reply intelligently")}
                   disabled={sending}
                   members={active.type === "group" ? chatMembers.map((m) => ({
                     id: m.id,
@@ -1207,14 +1209,14 @@ export default function ChatPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowCreateGroup(false)}>
           <div className="bg-bg-card shadow-xl w-96 max-h-[80vh] flex flex-col rounded" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-bold text-text">创建群组</h2>
+              <h2 className="text-sm font-bold text-text">{t("创建群组", "Create group")}</h2>
               <button onClick={() => setShowCreateGroup(false)} className="text-text-muted hover:text-text p-1.5 rounded hover:bg-bg"><X size={16} /></button>
             </div>
             <div className="px-5 py-3">
-              <label className="block text-xs font-medium text-text mb-1.5">群组名称</label>
-              <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="可选，自动生成" className="w-full px-3 py-2.5 border border-border rounded text-sm outline-none focus:border-primary" />
+              <label className="block text-xs font-medium text-text mb-1.5">{t("群组名称", "Group name")}</label>
+              <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder={t("可选，自动生成", "Optional; generated automatically")} className="w-full px-3 py-2.5 border border-border rounded text-sm outline-none focus:border-primary" />
             </div>
-            <div className="px-5 pb-2"><p className="text-[11px] text-text-muted">选择成员（可选AI员工和人类员工）</p></div>
+            <div className="px-5 pb-2"><p className="text-[11px] text-text-muted">{t("选择成员（可选AI员工和人类员工）", "Choose members (AI and human employees are supported)")}</p></div>
             <div className="flex-1 overflow-y-auto px-5 pb-3">
               <div className="space-y-1">
                 {departments.map(dept => (
@@ -1249,10 +1251,10 @@ export default function ChatPage() {
               </div>
             </div>
             <div className="px-5 py-3.5 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-text-muted">已选 {selectedEmployees.length} 人</p>
+              <p className="text-[11px] text-text-muted">{t("已选 ", "Selected ") + selectedEmployees.length + t(" 人", "")}</p>
               <div className="flex gap-2.5">
-                <button onClick={() => setShowCreateGroup(false)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">取消</button>
-                <button onClick={createGroup} disabled={selectedEmployees.length === 0} className="px-3.5 py-2 bg-primary text-white text-xs rounded font-medium hover:opacity-90 disabled:opacity-50">创建群组</button>
+                <button onClick={() => setShowCreateGroup(false)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">{t("取消", "Cancel")}</button>
+                <button onClick={createGroup} disabled={selectedEmployees.length === 0} className="px-3.5 py-2 bg-primary text-white text-xs rounded font-medium hover:opacity-90 disabled:opacity-50">{t("创建群组", "Create group")}</button>
               </div>
             </div>
           </div>
@@ -1262,7 +1264,7 @@ export default function ChatPage() {
       {renamingChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setRenamingChat(null)}>
           <div className="bg-bg-card shadow-xl w-80 p-5 rounded" onClick={e => e.stopPropagation()}>
-            <h2 className="text-sm font-bold text-text mb-3">重命名会话</h2>
+            <h2 className="text-sm font-bold text-text mb-3">{t("重命名会话", "Rename chat")}</h2>
             <input
               type="text"
               value={newChatName}
@@ -1272,8 +1274,8 @@ export default function ChatPage() {
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setRenamingChat(null)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">取消</button>
-              <button onClick={renameChat} disabled={!newChatName.trim()} className="px-3.5 py-2 bg-primary text-white text-xs rounded font-medium hover:opacity-90 disabled:opacity-50">确认</button>
+              <button onClick={() => setRenamingChat(null)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">{t("取消", "Cancel")}</button>
+              <button onClick={renameChat} disabled={!newChatName.trim()} className="px-3.5 py-2 bg-primary text-white text-xs rounded font-medium hover:opacity-90 disabled:opacity-50">{t("确认", "Confirm")}</button>
             </div>
           </div>
         </div>
@@ -1283,16 +1285,16 @@ export default function ChatPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowImportModal(null)}>
           <div className="bg-bg-card shadow-xl w-96 p-5 rounded" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-text">导入知识库</h2>
+              <h2 className="text-sm font-bold text-text">{t("导入知识库", "Import to knowledge")}</h2>
               <button onClick={() => setShowImportModal(null)} className="text-text-muted hover:text-text p-1 rounded hover:bg-bg"><X size={16} /></button>
             </div>
             <div className="mb-4">
-              <label className="block text-xs font-medium text-text mb-1.5">笔记标题</label>
+              <label className="block text-xs font-medium text-text mb-1.5">{t("笔记标题", "Note title")}</label>
               <input
                 type="text"
                 value={importKnowledgeTitle}
                 onChange={e => setImportKnowledgeTitle(e.target.value)}
-                placeholder={`会议纪要_${new Date().toISOString().slice(0, 10)}_讨论`}
+                placeholder={t("会议纪要_" + new Date().toISOString().slice(0, 10) + "_讨论", "meeting-minutes_" + new Date().toISOString().slice(0, 10) + "_discussion")}
                 className="w-full px-3 py-2.5 border border-border rounded text-sm outline-none focus:border-primary"
                 autoFocus
               />
@@ -1301,11 +1303,11 @@ export default function ChatPage() {
               {showImportModal.content.substring(0, 200)}...
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowImportModal(null)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">取消</button>
+              <button onClick={() => setShowImportModal(null)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">{t("取消", "Cancel")}</button>
               <button onClick={() => importToKnowledge(showImportModal.messageId)} disabled={importingKnowledge === showImportModal.messageId}
                 className="px-3.5 py-2 bg-purple-600 text-white text-xs rounded font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1">
                 {importingKnowledge === showImportModal.messageId ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
-                导入
+                {t("导入", "Import")}
               </button>
             </div>
           </div>
@@ -1317,7 +1319,7 @@ export default function ChatPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setForwardMsg(null); setForwardSearch(""); setForwardResults([]); }}>
           <div className="bg-bg-card shadow-xl w-96 max-h-[80vh] flex flex-col rounded-lg" onClick={e => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <h2 className="text-sm font-bold text-text">转发消息</h2>
+              <h2 className="text-sm font-bold text-text">{t("转发消息", "Forward message")}</h2>
               <button onClick={() => { setForwardMsg(null); setForwardSearch(""); setForwardResults([]); }} className="p-1 rounded hover:bg-bg text-text-muted"><X size={16} /></button>
             </div>
             <div className="p-3 bg-bg border-b border-border shrink-0">
@@ -1338,7 +1340,7 @@ export default function ChatPage() {
                       (emp.agent_type || "").toLowerCase().includes(lower)
                     ));
                   }}
-                  placeholder="搜索员工姓名、角色..."
+                  placeholder={t("搜索员工姓名、角色...", "Search employee name or role...")}
                   className="w-full pl-8 pr-3 py-2 text-xs rounded border border-border bg-white focus:outline-none focus:border-primary"
                 />
               </div>
@@ -1346,7 +1348,7 @@ export default function ChatPage() {
             <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
               {forwardSearch.trim() ? (
                 forwardResults.length === 0 ? (
-                  <p className="text-xs text-text-muted text-center py-4">未找到匹配的员工</p>
+                  <p className="text-xs text-text-muted text-center py-4">{t("未找到匹配的员工", "No matching employees")}</p>
                 ) : (
                   forwardResults.map(emp => (
                     <button
@@ -1371,7 +1373,7 @@ export default function ChatPage() {
                 )
               ) : (
                 <>
-                  <p className="text-[10px] text-text-muted px-2 pt-1 pb-0.5">最近会话</p>
+                  <p className="text-[10px] text-text-muted px-2 pt-1 pb-0.5">{t("最近会话", "Recent chats")}</p>
                   {chats.filter(c => c.id !== active?.id).slice(0, 10).map(chat => (
                     <button
                       key={chat.id}
@@ -1383,7 +1385,7 @@ export default function ChatPage() {
                       <span className="truncate">{chat.title}</span>
                     </button>
                   ))}
-                  {chats.length <= 1 && <p className="text-xs text-text-muted text-center py-2">暂无其他会话，上方搜索员工直接转发</p>}
+                  {chats.length <= 1 && <p className="text-xs text-text-muted text-center py-2">{t("暂无其他会话，上方搜索员工直接转发", "No other chats. Search for an employee above to forward directly.")}</p>}
                 </>
               )}
             </div>
@@ -1398,7 +1400,7 @@ export default function ChatPage() {
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users size={16} className="text-primary" />
-                <h2 className="text-sm font-bold text-text">群成员 ({chatMembers.length})</h2>
+                <h2 className="text-sm font-bold text-text">{t("群成员", "Group members")} ({chatMembers.length})</h2>
               </div>
               <button onClick={() => setShowMembersPanel(false)} className="text-text-muted hover:text-text p-1.5 rounded hover:bg-bg"><X size={16} /></button>
             </div>
@@ -1406,8 +1408,8 @@ export default function ChatPage() {
               <div className="space-y-1.5">
                 {chatMembers.map(m => {
                   const isAdmin = m.role === "admin";
-                  const name = m.user_name || m.employee_name || "未知";
-                  const role = m.employee_role || "成员";
+                  const name = m.user_name || m.employee_name || t("未知", "Unknown");
+                  const role = m.employee_role || t("成员", "Member");
                   const isMe = m.user_id === user?.id;
                   return (
                     <div key={m.id} className="flex items-center gap-3 px-3 py-2 rounded hover:bg-bg">
@@ -1418,14 +1420,14 @@ export default function ChatPage() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-medium text-text truncate">{name}</span>
                           {isAdmin && <Shield size={10} className="text-amber-500 shrink-0" />}
-                          {isMe && <span className="text-[9px] text-text-muted bg-bg px-1 rounded shrink-0">我</span>}
+                          {isMe && <span className="text-[9px] text-text-muted bg-bg px-1 rounded shrink-0">{t("我", "Me")}</span>}
                         </div>
                         <span className="text-[10px] text-text-muted">{role}</span>
                       </div>
                       {!isMe && (
                         <button onClick={() => toggleAdmin(m.id, m.role)}
                           className={`text-[10px] px-2 py-1 rounded ${isAdmin ? "text-amber-600 hover:bg-amber-50" : "text-text-muted hover:bg-bg"}`}>
-                          {isAdmin ? "取消管理" : "设为管理"}
+                          {isAdmin ? t("取消管理", "Remove admin") : t("设为管理", "Make admin")}
                         </button>
                       )}
                     </div>
@@ -1444,18 +1446,18 @@ export default function ChatPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Megaphone size={16} className="text-amber-500" />
-                <h2 className="text-sm font-bold text-text">编辑群公告</h2>
+                <h2 className="text-sm font-bold text-text">{t("编辑群公告", "Edit group announcement")}</h2>
               </div>
               <button onClick={() => setEditingAnnouncement(false)} className="text-text-muted hover:text-text p-1 rounded hover:bg-bg"><X size={16} /></button>
             </div>
             <textarea value={announcementText} onChange={e => setAnnouncementText(e.target.value)}
-              placeholder="输入群公告内容..."
+              placeholder={t("输入群公告内容...", "Write a group announcement...")}
               className="w-full h-24 px-3 py-2.5 border border-border rounded text-sm outline-none focus:border-primary resize-none mb-4"
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setEditingAnnouncement(false)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">取消</button>
-              <button onClick={saveAnnouncement} className="px-3.5 py-2 bg-amber-500 text-white text-xs rounded font-medium hover:bg-amber-600">保存公告</button>
+              <button onClick={() => setEditingAnnouncement(false)} className="px-3.5 py-2 text-xs text-text-muted hover:bg-bg rounded">{t("取消", "Cancel")}</button>
+              <button onClick={saveAnnouncement} className="px-3.5 py-2 bg-amber-500 text-white text-xs rounded font-medium hover:bg-amber-600">{t("保存公告", "Save announcement")}</button>
             </div>
           </div>
         </div>
