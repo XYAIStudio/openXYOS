@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware";
+import { localizedError } from "../utils/locale";
 import {
   createReflection, getReflections, getReflection, deleteReflection,
   addSkill, getEmployeeSkills, getAllSkills, useSkill, deleteSkill, getReflectionStats
@@ -7,6 +8,8 @@ import {
 
 export const reflectionRoutes = Router();
 reflectionRoutes.use(authenticate);
+
+const reflectionError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 // 获取反思记录列表
 reflectionRoutes.get("/reflections", (req: AuthRequest, res) => {
@@ -18,7 +21,7 @@ reflectionRoutes.get("/reflections", (req: AuthRequest, res) => {
     const reflections = getReflections(req.user!.tenant_id, filters);
     res.json({ success: true, data: reflections });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -26,10 +29,10 @@ reflectionRoutes.get("/reflections", (req: AuthRequest, res) => {
 reflectionRoutes.get("/reflections/:id", (req: AuthRequest, res) => {
   try {
     const reflection = getReflection(parseInt(req.params.id), req.user!.tenant_id);
-    if (!reflection) return res.status(404).json({ success: false, error: "反思记录不存在" });
+    if (!reflection) return res.status(404).json({ success: false, error: reflectionError(req, "反思记录不存在", "Reflection not found") });
     res.json({ success: true, data: reflection });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -39,7 +42,7 @@ reflectionRoutes.post("/reflections", (req: AuthRequest, res) => {
     const id = createReflection({ ...req.body, tenant_id: req.user!.tenant_id });
     res.json({ success: true, data: { id } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -49,7 +52,7 @@ reflectionRoutes.delete("/reflections/:id", requireAdmin, (req: AuthRequest, res
     deleteReflection(parseInt(req.params.id), req.user!.tenant_id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -59,7 +62,7 @@ reflectionRoutes.post("/skills", (req: AuthRequest, res) => {
     const id = addSkill({ ...req.body, tenant_id: req.user!.tenant_id });
     res.json({ success: true, data: { id } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -69,7 +72,7 @@ reflectionRoutes.get("/skills/employee/:employeeId", (req: AuthRequest, res) => 
     const skills = getEmployeeSkills(parseInt(req.params.employeeId), req.user!.tenant_id);
     res.json({ success: true, data: skills });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -79,7 +82,7 @@ reflectionRoutes.get("/skills", (req: AuthRequest, res) => {
     const skills = getAllSkills(req.user!.tenant_id);
     res.json({ success: true, data: skills });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -90,7 +93,7 @@ reflectionRoutes.post("/skills/:id/use", (req: AuthRequest, res) => {
     useSkill(parseInt(req.params.id), req.user!.tenant_id, success !== false);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -100,7 +103,7 @@ reflectionRoutes.delete("/skills/:id", requireAdmin, (req: AuthRequest, res) => 
     deleteSkill(parseInt(req.params.id), req.user!.tenant_id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -110,6 +113,6 @@ reflectionRoutes.get("/stats/:employeeId", (req: AuthRequest, res) => {
     const stats = getReflectionStats(parseInt(req.params.employeeId), req.user!.tenant_id);
     res.json({ success: true, data: stats });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: reflectionError(req, "反思服务暂时不可用，请稍后重试", "Reflection service is temporarily unavailable. Please try again") });
   }
 });

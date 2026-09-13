@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Brain, Plus, RefreshCw, Trash2, Shield, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { authFetch } from "../api/authFetch";
+import { useLocale } from "../i18n";
 
 interface Reflection {
   id: number; employee_id: number; task_id: number | null;
@@ -31,6 +32,7 @@ const DEPLOYMENT_LAWS = [
 ] as const;
 
 export default function ReflectionPage() {
+  const { t } = useLocale();
   const [reflections, setReflections] = useState<Reflection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLaws, setShowLaws] = useState(true);
@@ -68,7 +70,7 @@ export default function ReflectionPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("确定删除此反思记录？")) return;
+    if (!confirm(t("确定删除此反思记录？", "Delete this reflection?"))) return;
     await authFetch(`/api/reflections/reflections/${id}`, { method: "DELETE" });
     fetchData();
   };
@@ -85,14 +87,14 @@ export default function ReflectionPage() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <div className="flex items-center gap-2">
           <Brain size={20} className="text-accent" />
-          <h1 className="text-lg font-semibold">反思引擎</h1>
+          <h1 className="text-lg font-semibold">{t("反思引擎", "Reflection Engine")}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={fetchData} className="p-2 text-text-muted hover:text-text hover:bg-surface rounded-lg">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm [border-radius:1.5px]">
-            <Plus size={14} /> 新建反思
+            <Plus size={14} /> {t("新建反思", "New reflection")}
           </button>
         </div>
       </div>
@@ -101,8 +103,8 @@ export default function ReflectionPage() {
       <div className="px-4 py-2 border-b border-border/30">
         <button onClick={() => setShowLaws(v => !v)} className="flex items-center gap-2 w-full py-2 text-sm text-text-secondary hover:text-text">
           <Shield size={14} className="text-warning" />
-          <span className="font-medium">系统部署铁律（7条）</span>
-          <span className="text-text-muted text-xs">— 错误反思 · 不可违背</span>
+          <span className="font-medium">{t("系统部署铁律（7条）", "Deployment principles (7)")}</span>
+          <span className="text-text-muted text-xs">{t("— 错误反思 · 不可违背", "— lessons learned · non-negotiable")}</span>
           {showLaws ? <ChevronUp size={14} className="ml-auto" /> : <ChevronDown size={14} className="ml-auto" />}
         </button>
         {showLaws && (
@@ -125,30 +127,30 @@ export default function ReflectionPage() {
           <div className="flex flex-col gap-2 max-w-xl">
             <div className="flex gap-2">
               <input type="number" value={newReflection.employee_id || ""} onChange={e => setNewReflection(p => ({ ...p, employee_id: Number(e.target.value) }))}
-                placeholder="员工ID" className="w-24 px-3 py-2 bg-bg border border-border/50 text-sm [border-radius:1.5px]" />
+                placeholder={t("员工ID", "Employee ID")} className="w-24 px-3 py-2 bg-bg border border-border/50 text-sm [border-radius:1.5px]" />
               <select value={newReflection.reflection_type} onChange={e => setNewReflection(p => ({ ...p, reflection_type: e.target.value }))}
                 className="px-3 py-2 bg-bg border border-border/50 text-sm [border-radius:1.5px]">
-                <option value="task_completion">任务完成</option>
-                <option value="error_learning">错误学习</option>
-                <option value="knowledge_capture">知识沉淀</option>
-                <option value="improvement">改进计划</option>
+                <option value="task_completion">{t("任务完成", "Task completion")}</option>
+                <option value="error_learning">{t("错误学习", "Error learning")}</option>
+                <option value="knowledge_capture">{t("知识沉淀", "Knowledge capture")}</option>
+                <option value="improvement">{t("改进计划", "Improvement plan")}</option>
               </select>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-text-muted">重要性</span>
+                <span className="text-xs text-text-muted">{t("重要性", "Importance")}</span>
                 <input type="number" min="0" max="100" value={newReflection.importance_score}
                   onChange={e => setNewReflection(p => ({ ...p, importance_score: Number(e.target.value) }))}
                   className="w-16 px-2 py-2 bg-bg border border-border/50 text-sm [border-radius:1.5px]" />
               </div>
             </div>
             <textarea value={newReflection.success_factors} onChange={e => setNewReflection(p => ({ ...p, success_factors: e.target.value }))}
-              placeholder="成功因素" rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
+              placeholder={t("成功因素", "Success factors")} rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
             <textarea value={newReflection.failure_reasons} onChange={e => setNewReflection(p => ({ ...p, failure_reasons: e.target.value }))}
-              placeholder="失败原因" rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
+              placeholder={t("失败原因", "Failure reasons")} rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
             <textarea value={newReflection.improvement_plans} onChange={e => setNewReflection(p => ({ ...p, improvement_plans: e.target.value }))}
-              placeholder="改进计划" rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
+              placeholder={t("改进计划", "Improvement plan")} rows={2} className="px-3 py-2 bg-bg border border-border/50 text-sm resize-none [border-radius:1.5px]" />
             <div className="flex gap-2">
-              <button onClick={handleCreate} className="px-4 py-2 bg-primary text-white text-sm [border-radius:1.5px]">创建</button>
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-text-muted text-sm hover:bg-surface [border-radius:1.5px]">取消</button>
+              <button onClick={handleCreate} className="px-4 py-2 bg-primary text-white text-sm [border-radius:1.5px]">{t("创建", "Create")}</button>
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-text-muted text-sm hover:bg-surface [border-radius:1.5px]">{t("取消", "Cancel")}</button>
             </div>
           </div>
         </div>
@@ -156,11 +158,11 @@ export default function ReflectionPage() {
 
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-text-muted">加载中...</div>
+          <div className="flex items-center justify-center h-40 text-text-muted">{t("加载中...", "Loading...")}</div>
         ) : reflections.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-text-muted">
             <Brain size={32} className="mb-2 opacity-30" />
-            <span>暂无反思记录</span>
+            <span>{t("暂无反思记录", "No reflections yet")}</span>
           </div>
         ) : (
           <div className="space-y-3">
@@ -171,12 +173,12 @@ export default function ReflectionPage() {
                     <span className={`text-xs px-2 py-0.5 [border-radius:1.5px] ${REFLECTION_TYPE_COLORS[ref.reflection_type]}`}>
                       {REFLECTION_TYPES[ref.reflection_type]}
                     </span>
-                    <span className="text-sm font-medium">员工 #{ref.employee_id}</span>
-                    {ref.task_id && <span className="text-xs text-text-muted">任务 #{ref.task_id}</span>}
+                    <span className="text-sm font-medium">{t("员工 #", "Employee #")}{ref.employee_id}</span>
+                    {ref.task_id && <span className="text-xs text-text-muted">{t("任务 #", "Task #")}{ref.task_id}</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-medium ${getImportanceColor(ref.importance_score)}`}>
-                      重要性: {ref.importance_score}
+                      {t("重要性: ", "Importance: ")}{ref.importance_score}
                     </span>
                     <button onClick={() => handleDelete(ref.id)} className="text-text-muted hover:text-danger p-1">
                       <Trash2 size={12} />
@@ -186,25 +188,25 @@ export default function ReflectionPage() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {ref.success_factors && (
                     <div className="p-2 bg-success/5 rounded">
-                      <div className="text-success font-medium mb-1">成功因素</div>
+                      <div className="text-success font-medium mb-1">{t("成功因素", "Success factors")}</div>
                       <div className="text-text-muted">{ref.success_factors}</div>
                     </div>
                   )}
                   {ref.failure_reasons && (
                     <div className="p-2 bg-danger/5 rounded">
-                      <div className="text-danger font-medium mb-1">失败原因</div>
+                      <div className="text-danger font-medium mb-1">{t("失败原因", "Failure reasons")}</div>
                       <div className="text-text-muted">{ref.failure_reasons}</div>
                     </div>
                   )}
                   {ref.improvement_plans && (
                     <div className="p-2 bg-warning/5 rounded">
-                      <div className="text-warning font-medium mb-1">改进计划</div>
+                      <div className="text-warning font-medium mb-1">{t("改进计划", "Improvement plan")}</div>
                       <div className="text-text-muted">{ref.improvement_plans}</div>
                     </div>
                   )}
                   {ref.extracted_skills && (
                     <div className="p-2 bg-primary/5 rounded">
-                      <div className="text-primary font-medium mb-1">提取技能</div>
+                      <div className="text-primary font-medium mb-1">{t("提取技能", "Extracted skills")}</div>
                       <div className="text-text-muted">{ref.extracted_skills}</div>
                     </div>
                   )}
