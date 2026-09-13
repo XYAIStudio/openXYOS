@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { authenticate, AuthRequest } from "../middleware";
 import { dbAll, dbGet, dbRun } from "../db";
+import { localizedError } from "../utils/locale";
 
 export const announcementRoutes = Router();
 announcementRoutes.use(authenticate);
+
+const announcementError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 /** 公告列表（支持分页、类型筛选、搜索） */
 announcementRoutes.get("/", (req: AuthRequest, res) => {
@@ -60,7 +63,7 @@ announcementRoutes.get("/", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { list, total, page, limit } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -80,7 +83,7 @@ announcementRoutes.get("/pinned", (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: rows });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -95,7 +98,7 @@ announcementRoutes.get("/:id", (req: AuthRequest, res) => {
        WHERE a.id = ? AND a.deleted_at IS NULL`,
       [id]
     );
-    if (!row) return res.status(404).json({ success: false, error: "公告不存在或已删除" });
+    if (!row) return res.status(404).json({ success: false, error: announcementError(req, "公告不存在或已删除", "Announcement not found or deleted") });
 
     // 标记已读
     dbRun(
@@ -105,7 +108,7 @@ announcementRoutes.get("/:id", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: row });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -122,7 +125,7 @@ announcementRoutes.get("/action/unread", (req: AuthRequest, res) => {
     )?.count ?? 0;
     res.json({ success: true, data: { count } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -137,7 +140,7 @@ announcementRoutes.post("/:id/read", (req: AuthRequest, res) => {
     );
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -157,7 +160,7 @@ announcementRoutes.post("/read-all", (req: AuthRequest, res) => {
     }
     res.json({ success: true, data: { marked: unreadIds.length } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -166,11 +169,11 @@ announcementRoutes.post("/", (req: AuthRequest, res) => {
   try {
     const { role } = req.user!;
     if (role !== "admin" && role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "无权限" });
+      return res.status(403).json({ success: false, error: announcementError(req, "无权限", "Permission denied") });
     }
     const { title, content, type, priority, is_pinned, expires_at } = req.body;
     if (!title || !content) {
-      return res.status(400).json({ success: false, error: "标题和内容不能为空" });
+      return res.status(400).json({ success: false, error: announcementError(req, "标题和内容不能为空", "Title and content are required") });
     }
     const result = dbRun(
       `INSERT INTO announcements (tenant_id, title, content, type, priority, is_pinned, expires_at, created_by, published_at)
@@ -180,7 +183,7 @@ announcementRoutes.post("/", (req: AuthRequest, res) => {
     const row = dbGet("SELECT * FROM announcements WHERE id = ?", [result.lastInsertRowid]);
     res.json({ success: true, data: row });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -189,11 +192,11 @@ announcementRoutes.put("/:id", (req: AuthRequest, res) => {
   try {
     const { role } = req.user!;
     if (role !== "admin" && role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "无权限" });
+      return res.status(403).json({ success: false, error: announcementError(req, "无权限", "Permission denied") });
     }
     const id = parseInt(req.params.id);
     const exists = dbGet("SELECT id FROM announcements WHERE id = ? AND deleted_at IS NULL", [id]);
-    if (!exists) return res.status(404).json({ success: false, error: "公告不存在" });
+    if (!exists) return res.status(404).json({ success: false, error: announcementError(req, "公告不存在", "Announcement not found") });
 
     const { title, content, type, priority, is_pinned, expires_at } = req.body;
     dbRun(
@@ -203,7 +206,7 @@ announcementRoutes.put("/:id", (req: AuthRequest, res) => {
     const row = dbGet("SELECT * FROM announcements WHERE id = ?", [id]);
     res.json({ success: true, data: row });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -212,13 +215,13 @@ announcementRoutes.delete("/:id", (req: AuthRequest, res) => {
   try {
     const { role } = req.user!;
     if (role !== "admin" && role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "无权限" });
+      return res.status(403).json({ success: false, error: announcementError(req, "无权限", "Permission denied") });
     }
     const id = parseInt(req.params.id);
     dbRun("UPDATE announcements SET deleted_at = datetime('now') WHERE id = ?", [id]);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -227,15 +230,15 @@ announcementRoutes.put("/:id/toggle-pin", (req: AuthRequest, res) => {
   try {
     const { role } = req.user!;
     if (role !== "admin" && role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "无权限" });
+      return res.status(403).json({ success: false, error: announcementError(req, "无权限", "Permission denied") });
     }
     const id = parseInt(req.params.id);
     const row = dbGet("SELECT is_pinned FROM announcements WHERE id = ? AND deleted_at IS NULL", [id]);
-    if (!row) return res.status(404).json({ success: false, error: "公告不存在" });
+    if (!row) return res.status(404).json({ success: false, error: announcementError(req, "公告不存在", "Announcement not found") });
     const newPinned = (row as any).is_pinned ? 0 : 1;
     dbRun("UPDATE announcements SET is_pinned = ?, updated_at = datetime('now') WHERE id = ?", [newPinned, id]);
     res.json({ success: true, data: { is_pinned: newPinned === 1 } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: announcementError(req, "公告服务暂时不可用，请稍后重试", "Announcement service is temporarily unavailable. Please try again") });
   }
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "../stores/auth";
 import { authFetch } from "../api/authFetch";
+import { useLocale } from "../i18n";
 import { Megaphone, Pin, Eye, EyeOff, Plus, X, Search, Bell, FileText, AlertTriangle, Newspaper, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Announcement {
@@ -35,6 +36,7 @@ const PRIORITY_MAP: Record<string, string> = {
 };
 
 export default function AnnouncementPage() {
+  const { t, locale } = useLocale();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
@@ -114,7 +116,7 @@ export default function AnnouncementPage() {
   };
 
   const submitForm = async () => {
-    if (!form.title || !form.content) return alert("标题和内容不能为空");
+    if (!form.title || !form.content) return alert(t("标题和内容不能为空", "Title and content are required"));
     try {
       const url = editId ? `/api/announcements/${editId}` : "/api/announcements";
       const method = editId ? "PUT" : "POST";
@@ -133,7 +135,7 @@ export default function AnnouncementPage() {
   };
 
   const deleteAnnouncement = async (id: number) => {
-    if (!confirm("确定删除该公告？")) return;
+    if (!confirm(t("确定删除该公告？", "Delete this announcement?"))) return;
     try {
       await authFetch(`/api/announcements/${id}`, { method: "DELETE" });
       fetchList();
@@ -151,7 +153,7 @@ export default function AnnouncementPage() {
 
   const formatDate = (d: string) => {
     if (!d) return "";
-    return new Date(d).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(d).toLocaleString(locale === "en" ? "en-US" : "zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -160,16 +162,16 @@ export default function AnnouncementPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Megaphone size={24} className="text-primary" />
-          <h1 className="text-xl font-bold text-text">通知公告</h1>
+          <h1 className="text-xl font-bold text-text">{t("通知公告", "Announcements")}</h1>
           {unreadCount > 0 && (
-            <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-600 font-medium">{unreadCount} 条未读</span>
+            <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-600 font-medium">{unreadCount} {t("条未读", "unread")}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={markAllRead} className="text-sm text-text-muted hover:text-primary transition-colors">全部已读</button>
+          <button onClick={markAllRead} className="text-sm text-text-muted hover:text-primary transition-colors">{t("全部已读", "Mark all read")}</button>
           {isAdmin && (
             <button onClick={openCreate} className="flex items-center gap-1 px-3 py-1.5 text-sm rounded bg-primary text-white hover:bg-primary/90 transition-colors">
-              <Plus size={14} /> 发布公告
+              <Plus size={14} /> {t("发布公告", "Publish announcement")}
             </button>
           )}
         </div>
@@ -179,34 +181,34 @@ export default function AnnouncementPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-1 flex-wrap">
           {[
-            { key: "all", label: "全部" },
-            { key: "notice", label: "通知" },
-            { key: "policy", label: "制度" },
-            { key: "news", label: "新闻" },
-            { key: "emergency", label: "紧急" },
-          ].map(t => (
-            <button key={t.key} onClick={() => { setFilterType(t.key); setPage(1); }}
-              className={`px-3 py-1 rounded text-sm transition-colors ${filterType === t.key ? "bg-primary text-white" : "bg-bg text-text-muted hover:bg-border"}`}>
-              {t.label}
+            { key: "all", label: t("全部", "All") },
+            { key: "notice", label: t("通知", "Notice") },
+            { key: "policy", label: t("制度", "Policy") },
+            { key: "news", label: t("新闻", "News") },
+            { key: "emergency", label: t("紧急", "Emergency") },
+          ].map(filter => (
+            <button key={filter.key} onClick={() => { setFilterType(filter.key); setPage(1); }}
+              className={`px-3 py-1 rounded text-sm transition-colors ${filterType === filter.key ? "bg-primary text-white" : "bg-bg text-text-muted hover:bg-border"}`}>
+              {filter.label}
             </button>
           ))}
         </div>
         <div className="relative w-full sm:w-56">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="搜索公告..." className="w-full pl-8 pr-3 py-1.5 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary" />
+            placeholder={t("搜索公告...", "Search announcements...")} className="w-full pl-8 pr-3 py-1.5 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary" />
         </div>
       </div>
 
       {/* List */}
       {loading ? (
-        <div className="text-center py-12 text-text-muted">加载中...</div>
+        <div className="text-center py-12 text-text-muted">{t("加载中...", "Loading...")}</div>
       ) : announcements.length === 0 ? (
-        <div className="text-center py-12 text-text-muted">暂无公告</div>
+        <div className="text-center py-12 text-text-muted">{t("暂无公告", "No announcements")}</div>
       ) : (
         <div className="space-y-2">
           {announcements.map(a => {
-            const t = TYPE_MAP[a.type] || TYPE_MAP.notice;
+            const typeMeta = TYPE_MAP[a.type] || TYPE_MAP.notice;
             const isExpired = a.expires_at && new Date(a.expires_at) < new Date();
             return (
               <div key={a.id}
@@ -218,8 +220,8 @@ export default function AnnouncementPage() {
                   </div>
                 )}
                 <div className="flex items-start gap-3">
-                  <div className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium border ${t.color}`}>
-                    {t.label}
+                  <div className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium border ${typeMeta.color}`}>
+                    {t(typeMeta.label, ({"通知":"Notice", "制度":"Policy", "新闻":"News", "紧急":"Emergency"} as Record<string,string>)[typeMeta.label] || typeMeta.label)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -227,12 +229,12 @@ export default function AnnouncementPage() {
                         {!a.is_read && <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 align-middle" />}
                         {a.title}
                       </h3>
-                      {a.priority === "urgent" && <span className="text-[10px] text-red-500 font-bold">紧急</span>}
-                      {isExpired && <span className="text-[10px] text-text-muted">已过期</span>}
+                      {a.priority === "urgent" && <span className="text-[10px] text-red-500 font-bold">{t("紧急", "Urgent")}</span>}
+                      {isExpired && <span className="text-[10px] text-text-muted">{t("已过期", "Expired")}</span>}
                     </div>
                     <p className="text-xs text-text-muted mt-1 line-clamp-1">{a.content?.replace(/<[^>]*>/g, "").slice(0, 80)}</p>
                     <div className="flex items-center gap-3 mt-2 text-[11px] text-text-muted">
-                      <span>{a.creator_name || "系统"}</span>
+                      <span>{a.creator_name || t("系统", "System")}</span>
                       <span>{formatDate(a.published_at)}</span>
                       <span className="flex items-center gap-1">
                         <Eye size={11} /> {a.read_percent}% ({a.read_count}/{a.total_users})
@@ -242,11 +244,11 @@ export default function AnnouncementPage() {
                   {/* Admin actions */}
                   {isAdmin && (
                     <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(a)} className="p-1 text-text-muted hover:text-primary text-xs" title="编辑">✎</button>
-                      <button onClick={() => togglePin(a.id)} className="p-1 text-text-muted hover:text-primary text-xs" title={a.is_pinned ? "取消置顶" : "置顶"}>
+                      <button onClick={() => openEdit(a)} className="p-1 text-text-muted hover:text-primary text-xs" title={t("编辑", "Edit")}>✎</button>
+                      <button onClick={() => togglePin(a.id)} className="p-1 text-text-muted hover:text-primary text-xs" title={a.is_pinned ? t("取消置顶", "Unpin") : t("置顶", "Pin")}>
                         <Pin size={12} className={a.is_pinned ? "text-primary" : ""} />
                       </button>
-                      <button onClick={() => deleteAnnouncement(a.id)} className="p-1 text-text-muted hover:text-red-500 text-xs" title="删除">🗑</button>
+                      <button onClick={() => deleteAnnouncement(a.id)} className="p-1 text-text-muted hover:text-red-500 text-xs" title={t("删除", "Delete")}>🗑</button>
                     </div>
                   )}
                 </div>
@@ -281,17 +283,17 @@ export default function AnnouncementPage() {
                 <div className={`px-2 py-0.5 rounded text-xs font-medium border ${(TYPE_MAP[detail.type] || TYPE_MAP.notice).color}`}>
                   {(TYPE_MAP[detail.type] || TYPE_MAP.notice).label}
                 </div>
-                {detail.priority === "urgent" && <span className="text-xs text-red-500 font-bold">紧急</span>}
+                {detail.priority === "urgent" && <span className="text-xs text-red-500 font-bold">{t("紧急", "Urgent")}</span>}
               </div>
               <button onClick={() => setDetail(null)} className="p-1 hover:bg-bg rounded"><X size={18} /></button>
             </div>
             <div className="p-4">
               <h2 className="text-lg font-bold text-text mb-3">{detail.title}</h2>
               <div className="flex items-center gap-3 text-xs text-text-muted mb-4">
-                <span>发布者: {detail.creator_name || "系统"}</span>
-                <span>发布时间: {formatDate(detail.published_at)}</span>
-                {detail.expires_at && <span>有效期至: {formatDate(detail.expires_at)}</span>}
-                <span><Eye size={11} className="inline" /> {detail.read_percent}% 已读</span>
+                <span>{t("发布者: ", "Publisher: ")}{detail.creator_name || t("系统", "System")}</span>
+                <span>{t("发布时间: ", "Published: ")}{formatDate(detail.published_at)}</span>
+                {detail.expires_at && <span>{t("有效期至: ", "Expires: ")}{formatDate(detail.expires_at)}</span>}
+                <span><Eye size={11} className="inline" /> {detail.read_percent}% {t("已读", "read")}</span>
               </div>
               <div className="prose prose-sm max-w-none text-text whitespace-pre-wrap leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: detail.content }} />
@@ -306,23 +308,23 @@ export default function AnnouncementPage() {
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-bg-card rounded-lg max-w-lg w-full max-h-[90vh] overflow-auto shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <h3 className="font-bold text-text">{editId ? "编辑公告" : "发布公告"}</h3>
+              <h3 className="font-bold text-text">{editId ? t("编辑公告", "Edit announcement") : t("发布公告", "Publish announcement")}</h3>
               <button onClick={() => setShowForm(false)} className="p-1 hover:bg-bg rounded"><X size={18} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-xs text-text-muted mb-1">标题 *</label>
+                <label className="block text-xs text-text-muted mb-1">{t("标题 *", "Title *")}</label>
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary" placeholder="公告标题" />
+                  className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary" placeholder={t("公告标题", "Announcement title")} />
               </div>
               <div>
-                <label className="block text-xs text-text-muted mb-1">内容 *（支持 HTML）</label>
+                <label className="block text-xs text-text-muted mb-1">{t("内容 *（支持 HTML）", "Content * (HTML supported)")}</label>
                 <textarea value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
-                  rows={6} className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary resize-y" placeholder="公告正文..." />
+                  rows={6} className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none focus:border-primary resize-y" placeholder={t("公告正文...", "Announcement content...")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">类型</label>
+                  <label className="block text-xs text-text-muted mb-1">{t("类型", "Type")}</label>
                   <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
                     className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none">
                     <option value="notice">通知</option>
@@ -332,7 +334,7 @@ export default function AnnouncementPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">优先级</label>
+                  <label className="block text-xs text-text-muted mb-1">{t("优先级", "Priority")}</label>
                   <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}
                     className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none">
                     <option value="low">低</option>
@@ -348,7 +350,7 @@ export default function AnnouncementPage() {
                     className="rounded" /> 置顶
                 </label>
                 <div className="flex items-center gap-2 flex-1">
-                  <label className="text-xs text-text-muted shrink-0">有效期至</label>
+                  <label className="text-xs text-text-muted shrink-0">{t("有效期至", "Expires")}</label>
                   <input type="datetime-local" value={form.expires_at ? form.expires_at.slice(0, 16) : ""}
                     onChange={e => setForm({ ...form, expires_at: e.target.value ? e.target.value + ":00" : "" })}
                     className="flex-1 px-2 py-1.5 text-sm rounded border border-border bg-bg focus:outline-none" />
@@ -356,7 +358,7 @@ export default function AnnouncementPage() {
               </div>
               <button onClick={submitForm}
                 className="w-full py-2 rounded bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors">
-                {editId ? "保存修改" : "发布公告"}
+                {editId ? t("保存修改", "Save changes") : t("发布公告", "Publish announcement")}
               </button>
             </div>
           </div>
