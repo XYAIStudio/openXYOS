@@ -4,6 +4,7 @@ import { Users, UserPlus, Store, Search, ChevronRight, Building2, Briefcase, Bot
 import { useAuthStore } from "../stores/auth";
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
+import { useLocale } from "../i18n";
 
 interface Employee {
   id: number;
@@ -59,6 +60,7 @@ export default function EmployeesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "super_admin" || user?.role === "admin";
+  const { t } = useLocale();
 
   const [activeTab, setActiveTab] = useState<TabKey>("internal");
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -221,11 +223,11 @@ export default function EmployeesPage() {
   }
 
   async function handleRecruit(talentId: number) {
-    if (!confirm("确认招募该人才？将加入备选员工库。")) return;
+    if (!confirm(t("确认招募该人才？将加入备选员工库。", "Recruit this talent into the reserve employee pool?"))) return;
     try {
       const r = await authFetch(`/api/talent/${talentId}/recruit`, { method: "POST" });
       if (r.ok) { loadTalent(); loadCatStats(); }
-    } catch (e) { alert("招募失败"); }
+    } catch (e) { alert(t("招募失败", "Recruitment failed")); }
   }
 
   const filteredEmployees = search
@@ -237,9 +239,9 @@ export default function EmployeesPage() {
     : talentPool;
 
   const tabs: { key: TabKey; label: string; icon: any; count?: number }[] = [
-    { key: "internal", label: "内部员工", icon: Users, count: catStats?.internal },
-    { key: "reserve", label: "备选员工", icon: UserCheck, count: catStats?.reserve },
-    { key: "talent", label: "人才市场", icon: Store, count: talentStats?.total },
+    { key: "internal", label: t("内部员工", "Internal employees"), icon: Users, count: catStats?.internal },
+    { key: "reserve", label: t("备选员工", "Reserve employees"), icon: UserCheck, count: catStats?.reserve },
+    { key: "talent", label: t("人才市场", "Talent market"), icon: Store, count: talentStats?.total },
   ];
 
   return (
@@ -247,8 +249,8 @@ export default function EmployeesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text">人机资源</h1>
-          <p className="text-sm text-text-muted mt-1">人机共融 · 三类管理 · 全生命周期</p>
+          <h1 className="text-2xl font-bold text-text">{t("人机资源", "Human–AI resources")}</h1>
+          <p className="text-sm text-text-muted mt-1">{t("人机共融 · 三类管理 · 全生命周期", "Human–AI collaboration · three talent pools · full lifecycle")}</p>
         </div>
         {isAdmin && (
           <button onClick={() => setShowCreate(true)}
@@ -298,7 +300,7 @@ export default function EmployeesPage() {
         <div className="flex-1 relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
-            type="text" placeholder={activeTab === "talent" ? "搜索人才/技能..." : "搜索员工姓名/职位/技能..."}
+            type="text" placeholder={activeTab === "talent" ? t("搜索人才/技能...", "Search talent or skills...") : t("搜索员工姓名/职位/技能...", "Search employee, role, or skills...")}
             value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-bg-card border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
           />
@@ -310,13 +312,13 @@ export default function EmployeesPage() {
         </div>
         <select value={filterType} onChange={e => setFilterType(e.target.value)}
           className="px-3 py-2 bg-bg-card border border-border rounded-lg text-sm text-text focus:outline-none focus:border-primary">
-          <option value="">全部类型</option>
-          <option value="ai">AI员工</option>
-          <option value="human">人类员工</option>
+          <option value="">{t("全部类型", "All types")}</option>
+          <option value="ai">{t("AI员工", "AI employees")}</option>
+          <option value="human">{t("人类员工", "Human employees")}</option>
         </select>
         {(search || filterType) && (
           <button onClick={() => { setSearch(""); setFilterType(""); }} className="flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors">
-            <X size={14} /> 清除筛选
+            <X size={14} /> {t("清除筛选", "Clear filters")}
           </button>
         )}
       </div>
@@ -324,7 +326,7 @@ export default function EmployeesPage() {
       {/* Content */}
       <div className="min-h-[400px]">
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-text-muted text-sm">加载中...</div>
+          <div className="flex items-center justify-center py-20 text-text-muted text-sm">{t("加载中...", "Loading...")}</div>
         ) : activeTab === "talent" ? (
           <TalentGrid talents={filteredTalent} onRecruit={handleRecruit} isAdmin={isAdmin} />
         ) : (
@@ -373,6 +375,7 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
   employees: Employee[]; isInternal: boolean; isAdmin: boolean;
   onView: (id: number) => void; onOnboard: (id: number) => void; onReserve: (id: number) => void;
 }) {
+  const { t } = useLocale();
   if (employees.length === 0) {
     return <div className="text-center py-16 text-text-muted text-sm">{isInternal ? "暂无内部员工" : "暂无备选员工"}</div>;
   }
@@ -391,7 +394,7 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
                 {emp.employee_type === "ai" ? (
                   <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-500 rounded-full flex-shrink-0">AI</span>
                 ) : (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">人类</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">{t("人类", "Human")}</span>
                 )}
               </div>
               <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || "未分配岗位"}</p>
@@ -439,8 +442,9 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
 }
 
 function TalentGrid({ talents, onRecruit, isAdmin }: { talents: TalentItem[]; onRecruit: (id: number) => void; isAdmin: boolean }) {
+  const { t } = useLocale();
   if (talents.length === 0) {
-    return <div className="text-center py-16 text-text-muted text-sm">暂无可用人才</div>;
+    return <div className="text-center py-16 text-text-muted text-sm">{t("暂无可用人才", "No available talent")}</div>;
   }
 
   const humanTalents = talents.filter(t => t.talent_type === "human");
@@ -453,7 +457,7 @@ function TalentGrid({ talents, onRecruit, isAdmin }: { talents: TalentItem[]; on
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Bot size={16} className="text-purple-500" />
-            <h3 className="text-sm font-semibold text-text">AI 智能体</h3>
+            <h3 className="text-sm font-semibold text-text">AI {t("智能体", "agents")}</h3>
             <span className="text-xs text-text-muted">({aiTalents.length})</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -469,7 +473,7 @@ function TalentGrid({ talents, onRecruit, isAdmin }: { talents: TalentItem[]; on
         <div>
           <div className="flex items-center gap-2 mb-3">
             <User size={16} className="text-blue-500" />
-            <h3 className="text-sm font-semibold text-text">人类人才</h3>
+            <h3 className="text-sm font-semibold text-text">{t("人类人才", "Human talent")}</h3>
             <span className="text-xs text-text-muted">({humanTalents.length})</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -484,6 +488,7 @@ function TalentGrid({ talents, onRecruit, isAdmin }: { talents: TalentItem[]; on
 }
 
 function TalentCard({ talent, onRecruit, isAdmin }: { talent: TalentItem; onRecruit: (id: number) => void; isAdmin: boolean }) {
+  const { t } = useLocale();
   const stars = "⭐".repeat(Math.round(talent.rating));
   return (
     <div className="bg-bg-card border border-border rounded-xl p-4 hover:border-primary/50 hover:shadow-sm transition-all">
@@ -497,7 +502,7 @@ function TalentCard({ talent, onRecruit, isAdmin }: { talent: TalentItem; onRecr
         {talent.talent_type === "ai" ? (
           <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-500 rounded-full flex-shrink-0">AI</span>
         ) : (
-          <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">人类</span>
+          <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">{t("人类", "Human")}</span>
         )}
       </div>
 
@@ -512,23 +517,23 @@ function TalentCard({ talent, onRecruit, isAdmin }: { talent: TalentItem; onRecr
       {/* Human-specific info */}
       {talent.talent_type === "human" && (
         <div className="text-[10px] text-text-muted space-y-0.5 mb-3">
-          {talent.experience_years && <div>经验：{talent.experience_years}年</div>}
-          {talent.expected_salary && <div>期望薪资：{talent.expected_salary}</div>}
+          {talent.experience_years && <div>{t("经验：", "Experience: ")}{talent.experience_years}{t("年", " years")}</div>}
+          {talent.expected_salary && <div>{t("期望薪资：", "Expected salary: ")}{talent.expected_salary}</div>}
         </div>
       )}
 
       {/* AI-specific info */}
       {talent.talent_type === "ai" && (
         <div className="text-[10px] text-text-muted space-y-0.5 mb-3">
-          {talent.token_cost_per_k && <div>Token成本：{talent.token_cost_per_k}/K</div>}
-          {talent.provider && <div>提供商：{talent.provider}</div>}
+          {talent.token_cost_per_k && <div>{t("Token成本：", "Token cost: ")}{talent.token_cost_per_k}/K</div>}
+          {talent.provider && <div>{t("提供商：", "Provider: ")}{talent.provider}</div>}
         </div>
       )}
 
       {isAdmin && (
         <button onClick={() => onRecruit(talent.id)}
           className="w-full flex items-center justify-center gap-1.5 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary hover:text-white transition-colors">
-          <UserPlus size={13} /> 招募
+          <UserPlus size={13} /> {t("招募", "Recruit")}
         </button>
       )}
     </div>

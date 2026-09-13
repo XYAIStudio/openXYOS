@@ -7,6 +7,7 @@ import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest } from "../middleware";
 import { scanFileBuffer } from "../services/file-security";
 import { extractText } from "../services/doc-parser";
+import { localizedError } from "../utils/locale";
 
 export const agentStudioRoutes = Router();
 agentStudioRoutes.use(authenticate);
@@ -35,6 +36,8 @@ function ensureSchema() {
   dbRun("CREATE INDEX IF NOT EXISTS idx_agent_reference_owner ON agent_reference_files(tenant_id, uploaded_by)");
 }
 
+function agentError(req: AuthRequest, zh: string, en: string) { return localizedError(req, zh, en); }
+
 function cleanText(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -60,12 +63,12 @@ agentStudioRoutes.get("/references", (req: AuthRequest, res) => {
 agentStudioRoutes.post("/references", referenceUpload.single("file"), async (req: AuthRequest, res) => {
   try {
     ensureSchema();
-    if (!req.file) return res.status(400).json({ success: false, error: "请选择支持的参考资料文件" });
+    if (!req.file) return res.status(400).json({ success: false, error: agentError(req, "请选择支持的参考资料文件", "Select a supported reference file") });
     const scan = await scanFileBuffer(req.file.buffer);
     if (scan.verdict === "blocked") {
       return res.status(scan.reason === "infected" ? 422 : 503).json({
         success: false,
-        error: scan.reason === "infected" ? "文件安全扫描未通过" : "文件安全扫描服务不可用",
+        error: scan.reason === "infected" ? agentError(req, "文件安全扫描未通过", "The file did not pass the security scan") : agentError(req, "文件安全扫描服务不可用", "The file security scan is unavailable"),
       });
     }
     const extension = path.extname(req.file.originalname).toLowerCase();
@@ -78,11 +81,11 @@ agentStudioRoutes.post("/references", referenceUpload.single("file"), async (req
       extractedText = await extractText(storedPath, extension);
     } catch (parseError: any) {
       fs.rmSync(storedPath, { force: true });
-      return res.status(422).json({ success: false, error: `资料无法解析：${parseError.message}` });
+      return res.status(422).json({ success: false, error: agentError(req, `资料无法解析：${parseError.message}`, `The reference file could not be parsed: ${parseError.message}`) });
     }
     if (!extractedText) {
       fs.rmSync(storedPath, { force: true });
-      return res.status(422).json({ success: false, error: "资料中没有可读取的文本内容" });
+      return res.status(422).json({ success: false, error: agentError(req, "资料中没有可读取的文本内容", "The reference file contains no readable text") });
     }
     const inserted = dbRun(
       "INSERT INTO agent_reference_files (tenant_id, uploaded_by, original_name, stored_path, file_type, file_size, scan_status, extracted_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -109,18 +112,18 @@ agentStudioRoutes.post("/generate", (req: AuthRequest, res) => {
       ? [...new Set(req.body.reference_ids.map(Number).filter(Number.isSafeInteger))].slice(0, 20)
       : [];
 
-    if (!name || !positioning) return res.status(400).json({ success: false, error: "智能体名称和定位不能为空" });
-    if (capabilities.length === 0) return res.status(400).json({ success: false, error: "请至少填写一项能力" });
+    if (!name || !positioning) return res.status(400).json({ success: false, error: agentError(req, "智能体名称和定位不能为空", "Agent name and positioning are required") });
+    if (capabilities.length === 0) return res.status(400).json({ success: false, error: agentError(req, "请至少填写一项能力", "Add at least one capability") });
     if (!experience && referenceIds.length === 0 && !imaUrl) {
-      return res.status(400).json({ success: false, error: "请提供行业经验、参考资料或 ima 知识库中的至少一项" });
+      return res.status(400).json({ success: false, error: agentError(req, "请提供行业经验、参考资料或 ima 知识库中的至少一项", "Provide industry experience, a reference file, or an ima knowledge base") });
     }
 
     let imaBinding: { url: string; status: string } | null = null;
     if (imaUrl) {
       let parsed: URL;
-      try { parsed = new URL(imaUrl); } catch { return res.status(400).json({ success: false, error: "ima 知识库地址格式无效" }); }
+      try { parsed = new URL(imaUrl); } catch { return res.status(400).json({ success: false, error: agentError(req, "ima 知识库地址格式无效", "The ima knowledge base URL is invalid") }); }
       if (parsed.protocol !== "https:" || !parsed.hostname.toLowerCase().includes("ima")) {
-        return res.status(400).json({ success: false, error: "ima 知识库必须使用包含 ima 域名的 HTTPS 地址" });
+        return res.status(400).json({ success: false, error: agentError(req, "ima 知识库必须使用包含 ima 域名的 HTTPS 地址", "The ima knowledge base must use an HTTPS URL containing an ima domain") });
       }
       imaBinding = { url: imaUrl, status: "linked_unverified" };
     }
@@ -133,7 +136,7 @@ agentStudioRoutes.post("/generate", (req: AuthRequest, res) => {
         ) as Array<{ id: number; original_name: string; file_type: string; scan_status: string; extracted_text: string }>
       : [];
     if (references.length !== referenceIds.length) {
-      return res.status(400).json({ success: false, error: "部分参考资料不存在或不属于当前用户" });
+      return res.status(400).json({ success: false, error: agentError(req, "部分参考资料不存在或不属于当前用户", "One or more reference files do not exist or are not owned by the current user") });
     }
 
     const agentType = `custom-${safeSlug(name)}-${Date.now().toString(36)}`;
