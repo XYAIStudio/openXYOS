@@ -4,6 +4,7 @@ import path from "path";
 import { dbAll, dbGet, dbRun, getDb, saveDb } from "../db";
 import { authenticate, requireAdmin, requireSuperAdmin, AuthRequest } from "../middleware";
 import { LLM_PROVIDERS, type LLMProviderId } from "../llm-providers";
+import { localizedError } from "../utils/locale";
 
 // 数据库备份目录
 // Keep backups outside an immutable release directory in production. The default
@@ -13,6 +14,8 @@ const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, "..", "data", 
 export const settingsRoutes = Router();
 settingsRoutes.use(authenticate);
 
+const settingsError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
+
 // 确保备份目录存在
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -21,7 +24,7 @@ if (!fs.existsSync(BACKUP_DIR)) {
 // ===== 数据库管理 API（仅超级管理员） =====
 
 // 获取数据库信息
-settingsRoutes.get("/database/info", requireSuperAdmin, (_req: AuthRequest, res) => {
+settingsRoutes.get("/database/info", requireSuperAdmin, (req: AuthRequest, res) => {
   try {
     const db = getDb();
     // 获取表数量和行数统计
@@ -75,7 +78,7 @@ settingsRoutes.get("/database/info", requireSuperAdmin, (_req: AuthRequest, res)
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -109,16 +112,16 @@ settingsRoutes.post("/database/backup", requireSuperAdmin, (req: AuthRequest, re
         size: buffer.length,
         size_human: formatBytes(buffer.length),
         path: filePath,
-        message: "数据库备份成功",
+        message: settingsError(req, "数据库备份成功", "Database backup created"),
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 // 列出所有备份
-settingsRoutes.get("/database/backups", requireSuperAdmin, (_req: AuthRequest, res) => {
+settingsRoutes.get("/database/backups", requireSuperAdmin, (req: AuthRequest, res) => {
   try {
     if (!fs.existsSync(BACKUP_DIR)) {
       return res.json({ success: true, data: [] });
@@ -141,7 +144,7 @@ settingsRoutes.get("/database/backups", requireSuperAdmin, (_req: AuthRequest, r
 
     res.json({ success: true, data: files });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -150,17 +153,17 @@ settingsRoutes.post("/database/restore", requireSuperAdmin, (req: AuthRequest, r
   try {
     const { filename } = req.body;
     if (!filename) {
-      return res.status(400).json({ success: false, error: "请指定要恢复的备份文件名" });
+      return res.status(400).json({ success: false, error: settingsError(req, "请指定要恢复的备份文件名", "Specify the backup file to restore") });
     }
 
     // 安全检查：防止路径穿越
     if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-      return res.status(400).json({ success: false, error: "非法的文件名" });
+      return res.status(400).json({ success: false, error: settingsError(req, "非法的文件名", "Invalid filename") });
     }
 
     const backupPath = path.join(BACKUP_DIR, filename);
     if (!fs.existsSync(backupPath)) {
-      return res.status(404).json({ success: false, error: "备份文件不存在" });
+      return res.status(404).json({ success: false, error: settingsError(req, "备份文件不存在", "Backup file was not found") });
     }
 
     const dbPath = process.env.DATABASE_PATH || path.join(__dirname, "..", "data", "xiongyuan.db");
@@ -177,14 +180,14 @@ settingsRoutes.post("/database/restore", requireSuperAdmin, (req: AuthRequest, r
     res.json({
       success: true,
       data: {
-        message: "数据库恢复成功，将在下次重启后生效（或点击立即重载）",
+        message: settingsError(req, "数据库恢复成功，将在下次重启后生效（或点击立即重载）", "Database restore succeeded. It takes effect after the next restart (or immediate reload)."),
         restored_from: filename,
         safety_backup: preRestoreBackup,
-        note: "建议重启后端服务以确保数据完全加载",
+        note: settingsError(req, "建议重启后端服务以确保数据完全加载", "Restart the backend service to fully load the restored database."),
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -193,18 +196,18 @@ settingsRoutes.delete("/database/backups/:filename", requireSuperAdmin, (req: Au
   try {
     const { filename } = req.params;
     if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-      return res.status(400).json({ success: false, error: "非法的文件名" });
+      return res.status(400).json({ success: false, error: settingsError(req, "非法的文件名", "Invalid filename") });
     }
 
     const filePath = path.join(BACKUP_DIR, filename);
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, error: "文件不存在" });
+      return res.status(404).json({ success: false, error: settingsError(req, "文件不存在", "File was not found") });
     }
 
     fs.unlinkSync(filePath);
-    res.json({ success: true, data: { message: "备份已删除" } });
+    res.json({ success: true, data: { message: settingsError(req, "备份已删除", "Backup deleted") } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -238,7 +241,7 @@ settingsRoutes.get("/registration", (req: AuthRequest, res) => {
     const enabled = setting ? setting.setting_value === "true" : true;
     res.json({ success: true, data: { enabled } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -251,7 +254,7 @@ settingsRoutes.put("/registration", requireAdmin, (req: AuthRequest, res) => {
     );
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -265,7 +268,7 @@ settingsRoutes.get("/company", (req: AuthRequest, res) => {
     }
     res.json({ success: true, data: { company, settings: settingsMap } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -285,7 +288,7 @@ settingsRoutes.put("/company", requireAdmin, (req: AuthRequest, res) => {
     }
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -303,7 +306,7 @@ settingsRoutes.get("/ai", (req: AuthRequest, res) => {
     }
     res.json({ success: true, data: configMap });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -312,9 +315,9 @@ settingsRoutes.put("/ai/onboarding", requireAdmin, (req: AuthRequest, res) => {
     const providerId = String(req.body?.providerId || "") as LLMProviderId;
     const apiKey = String(req.body?.apiKey || "").trim();
     const preset = LLM_PROVIDERS[providerId];
-    if (!preset) return res.status(400).json({ success: false, error: "请选择受支持的大模型" });
+    if (!preset) return res.status(400).json({ success: false, error: settingsError(req, "请选择受支持的大模型", "Choose a supported AI model") });
     if (apiKey.length < 8 || apiKey.length > 512 || /\s/.test(apiKey)) {
-      return res.status(400).json({ success: false, error: "API Key 格式无效" });
+      return res.status(400).json({ success: false, error: settingsError(req, "API Key 格式无效", "API key format is invalid") });
     }
 
     const values = {
@@ -335,7 +338,7 @@ settingsRoutes.put("/ai/onboarding", requireAdmin, (req: AuthRequest, res) => {
       data: { providerId, provider: preset.provider, model: preset.model, configured: true },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -355,7 +358,7 @@ settingsRoutes.put("/ai", requireAdmin, (req: AuthRequest, res) => {
     }
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -364,21 +367,21 @@ settingsRoutes.get("/roles", (req: AuthRequest, res) => {
     const roles = dbAll("SELECT * FROM roles WHERE tenant_id = ?", [req.user!.tenant_id]);
     res.json({ success: true, data: roles });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 settingsRoutes.post("/roles", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { name, permissions } = req.body;
-    if (!name || !permissions) return res.status(400).json({ success: false, error: "名称和权限必填" });
+    if (!name || !permissions) return res.status(400).json({ success: false, error: settingsError(req, "名称和权限必填", "Name and permissions are required") });
     const result = dbRun(
       "INSERT INTO roles (name, permissions, tenant_id) VALUES (?, ?, ?)",
       [name, JSON.stringify(permissions), req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -389,12 +392,12 @@ settingsRoutes.put("/roles/:id", requireAdmin, (req: AuthRequest, res) => {
     const params: any[] = [];
     if (name) { updates.push("name = ?"); params.push(name); }
     if (permissions) { updates.push("permissions = ?"); params.push(JSON.stringify(permissions)); }
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: settingsError(req, "无更新内容", "No updates were supplied") });
     params.push(req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE roles SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -404,7 +407,7 @@ settingsRoutes.delete("/roles/:id", requireAdmin, (req: AuthRequest, res) => {
     dbRun("DELETE FROM user_roles WHERE role_id = ?", [req.params.id]);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -421,24 +424,24 @@ settingsRoutes.get("/users", requireAdmin, (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: users });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 settingsRoutes.post("/users", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { email, password, nickname, role } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, error: "邮箱和密码必填" });
+    if (!email || !password) return res.status(400).json({ success: false, error: settingsError(req, "邮箱和密码必填", "Email and password are required") });
 
     const existing = dbGet("SELECT id FROM users WHERE email = ?", [email]);
-    if (existing) return res.status(400).json({ success: false, error: "邮箱已注册" });
+    if (existing) return res.status(400).json({ success: false, error: settingsError(req, "邮箱已注册", "Email is already registered") });
 
     const bcrypt = require("bcryptjs");
     const hash = bcrypt.hashSync(password, 10);
     const userRole = role || "user";
 
     if (userRole === "super_admin" && req.user!.role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "只有超级管理员可以创建超级管理员" });
+      return res.status(403).json({ success: false, error: settingsError(req, "只有超级管理员可以创建超级管理员", "Only super administrators can create super administrators") });
     }
 
     const result = dbRun(
@@ -447,7 +450,7 @@ settingsRoutes.post("/users", requireAdmin, (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -455,14 +458,14 @@ settingsRoutes.put("/users/:id", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { nickname, role, password } = req.body;
     const targetUser = dbGet("SELECT * FROM users WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
-    if (!targetUser) return res.status(404).json({ success: false, error: "用户不存在" });
+    if (!targetUser) return res.status(404).json({ success: false, error: settingsError(req, "用户不存在", "User was not found") });
 
     if (targetUser.role === "super_admin" && req.user!.role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "只有超级管理员可以修改超级管理员" });
+      return res.status(403).json({ success: false, error: settingsError(req, "只有超级管理员可以修改超级管理员", "Only super administrators can edit super administrators") });
     }
 
     if (role === "super_admin" && req.user!.role !== "super_admin") {
-      return res.status(403).json({ success: false, error: "只有超级管理员可以设置超级管理员角色" });
+      return res.status(403).json({ success: false, error: settingsError(req, "只有超级管理员可以设置超级管理员角色", "Only super administrators can assign the super administrator role") });
     }
 
     const updates: string[] = [];
@@ -475,48 +478,48 @@ settingsRoutes.put("/users/:id", requireAdmin, (req: AuthRequest, res) => {
       params.push(bcrypt.hashSync(password, 10));
     }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: settingsError(req, "无更新内容", "No updates were supplied") });
 
     params.push(req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE users SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 settingsRoutes.delete("/users/:id", requireAdmin, (req: AuthRequest, res) => {
   try {
     const targetUser = dbGet("SELECT * FROM users WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
-    if (!targetUser) return res.status(404).json({ success: false, error: "用户不存在" });
+    if (!targetUser) return res.status(404).json({ success: false, error: settingsError(req, "用户不存在", "User was not found") });
 
     if (targetUser.role === "super_admin") {
-      return res.status(403).json({ success: false, error: "不能删除超级管理员" });
+      return res.status(403).json({ success: false, error: settingsError(req, "不能删除超级管理员", "Super administrators cannot be deleted") });
     }
 
     if (targetUser.id === req.user!.id) {
-      return res.status(400).json({ success: false, error: "不能删除自己" });
+      return res.status(400).json({ success: false, error: settingsError(req, "不能删除自己", "You cannot delete your own account") });
     }
 
     dbRun("DELETE FROM users WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     dbRun("DELETE FROM user_roles WHERE user_id = ?", [req.params.id]);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 settingsRoutes.post("/users/:userId/roles", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { roleId } = req.body;
-    if (!roleId) return res.status(400).json({ success: false, error: "角色ID必填" });
+    if (!roleId) return res.status(400).json({ success: false, error: settingsError(req, "角色ID必填", "Role ID is required") });
     dbRun(
       "INSERT OR IGNORE INTO user_roles (user_id, role_id, tenant_id) VALUES (?, ?, ?)",
       [req.params.userId, roleId, req.user!.tenant_id]
     );
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -528,20 +531,20 @@ settingsRoutes.delete("/users/:userId/roles/:roleId", requireAdmin, (req: AuthRe
     );
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
 // ===== 空中模式（私有化策略）开关 =====
 
 // 获取当前空中模式状态
-settingsRoutes.get("/air-gap", requireAdmin, (_req: AuthRequest, res) => {
+settingsRoutes.get("/air-gap", requireAdmin, (req: AuthRequest, res) => {
   try {
     const row = dbGet("SELECT setting_value FROM company_settings WHERE setting_key = 'air_gap_mode'") as any;
     const enabled = row?.setting_value === "true";
     res.json({ success: true, data: { airGapMode: enabled } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -559,6 +562,6 @@ settingsRoutes.post("/air-gap", requireAdmin, (req: AuthRequest, res) => {
     saveDb();
     res.json({ success: true, data: { airGapMode: enabled } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: settingsError(req, "系统设置服务暂时不可用，请稍后重试", "Settings service is temporarily unavailable. Please try again") });
   }
 });
