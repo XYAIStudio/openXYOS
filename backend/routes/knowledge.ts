@@ -9,9 +9,12 @@ import iconv from "iconv-lite";
 import crypto from "crypto";
 import multer from "multer";
 import { scanFileBuffer } from "../services/file-security";
+import { localizedError } from "../utils/locale";
 
 export const knowledgeRoutes = Router();
 knowledgeRoutes.use(authenticate);
+
+const knowledgeError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 const KNOWLEDGE_FILE_EXTENSIONS = new Set([
   ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
@@ -85,27 +88,27 @@ knowledgeRoutes.get("/", (req: AuthRequest, res) => {
     if (tags) { sql += " AND tags LIKE ?"; params.push(`%${tags}%`); }
     sql += " ORDER BY created_at DESC";
     res.json({ success: true, data: dbAll(sql, params) });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 knowledgeRoutes.get("/:id", (req: AuthRequest, res) => {
   try {
     const note = dbGet("SELECT * FROM knowledge_notes WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
-    if (!note) return res.status(404).json({ success: false, error: "笔记不存在" });
+    if (!note) return res.status(404).json({ success: false, error: knowledgeError(req, "笔记不存在", "Note not found") });
     res.json({ success: true, data: note });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 knowledgeRoutes.post("/", (req: AuthRequest, res) => {
   try {
     const { title, content, tags, source } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: knowledgeError(req, "标题必填", "Title is required") });
     const result = dbRun(
       "INSERT INTO knowledge_notes (title, content, tags, source, tenant_id) VALUES (?, ?, ?, ?, ?)",
       [title, content || "", tags || "", source || "", req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 knowledgeRoutes.put("/:id", (req: AuthRequest, res) => {
@@ -115,18 +118,18 @@ knowledgeRoutes.put("/:id", (req: AuthRequest, res) => {
     if (title !== undefined) { updates.push("title = ?"); params.push(title); }
     if (content !== undefined) { updates.push("content = ?"); params.push(content); }
     if (tags !== undefined) { updates.push("tags = ?"); params.push(tags); }
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: knowledgeError(req, "无更新内容", "No changes were provided") });
     params.push(req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE knowledge_notes SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 knowledgeRoutes.delete("/:id", (req: AuthRequest, res) => {
   try {
     dbRun("DELETE FROM knowledge_notes WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // ===== 文件管理 =====
@@ -136,7 +139,7 @@ knowledgeRoutes.post("/files/upload", requireAdmin, knowledgeUpload.single("file
   let storedPath: string | null = null;
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ success: false, error: "请选择文件" });
+    if (!file) return res.status(400).json({ success: false, error: knowledgeError(req, "请选择文件", "Please select a file") });
 
     // 修复中文文件名编码
     let originalName = file.originalname;
@@ -149,15 +152,15 @@ knowledgeRoutes.post("/files/upload", requireAdmin, knowledgeUpload.single("file
     } catch { /* keep original */ }
 
     const folder = normalizeFolder(req.body.folder || "/");
-    if (!folder) return res.status(400).json({ success: false, error: "知识文件夹路径无效" });
+    if (!folder) return res.status(400).json({ success: false, error: knowledgeError(req, "知识文件夹路径无效", "Knowledge folder path is invalid") });
     const fileType = path.extname(file.originalname).toLowerCase();
     if (!KNOWLEDGE_FILE_EXTENSIONS.has(fileType) || !matchesKnowledgeFileSignature(file.buffer, fileType)) {
-      return res.status(415).json({ success: false, error: "文件扩展名与内容不匹配，或文件类型不受支持" });
+      return res.status(415).json({ success: false, error: knowledgeError(req, "文件扩展名与内容不匹配，或文件类型不受支持", "File extension and content do not match, or the file type is unsupported") });
     }
     const scan = await scanFileBuffer(file.buffer);
     if (scan.verdict === "blocked") {
       const statusCode = scan.reason === "infected" ? 422 : 503;
-      return res.status(statusCode).json({ success: false, error: scan.reason === "infected" ? "文件安全扫描未通过" : "文件安全扫描服务不可用，上传已拒绝" });
+      return res.status(statusCode).json({ success: false, error: scan.reason === "infected" ? knowledgeError(req, "文件安全扫描未通过", "File security scan did not pass") : knowledgeError(req, "文件安全扫描服务不可用，上传已拒绝", "File security scanning is unavailable; upload was rejected") });
     }
     const sizeKB = Math.round(file.size / 1024);
 
@@ -171,7 +174,7 @@ knowledgeRoutes.post("/files/upload", requireAdmin, knowledgeUpload.single("file
     if (usedKB + sizeKB > limitKB) {
       const usedMB = (usedKB / 1024).toFixed(0);
       const limitMB = (limitKB / 1024).toFixed(0);
-      return res.status(413).json({ success: false, error: `存储空间不足：已用 ${usedMB}MB / ${limitMB}MB` });
+      return res.status(413).json({ success: false, error: knowledgeError(req, `存储空间不足：已用 ${usedMB}MB / ${limitMB}MB`, `Storage quota exceeded: ${usedMB}MB / ${limitMB}MB used`) });
     }
 
     storedPath = createTenantStoragePath(req.user!.tenant_id, fileType);
@@ -216,7 +219,7 @@ knowledgeRoutes.post("/files/upload", requireAdmin, knowledgeUpload.single("file
     res.json({ success: true, data: { id: result.lastInsertRowid, name: originalName, size: sizeKB, type: fileType, status } });
   } catch (err: any) {
     if (storedPath && fs.existsSync(storedPath)) fs.unlinkSync(storedPath);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -230,7 +233,7 @@ knowledgeRoutes.get("/files/list", (req: AuthRequest, res) => {
     if (status) { sql += " AND status = ?"; params.push(status); }
     sql += " ORDER BY created_at DESC";
     res.json({ success: true, data: dbAll(sql, params) });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 文件统计
@@ -245,7 +248,7 @@ knowledgeRoutes.get("/files/stats", (req: AuthRequest, res) => {
     const limitSetting = dbGet("SELECT setting_value FROM company_settings WHERE setting_key = 'knowledge_storage_limit_kb' AND tenant_id = ?", [tid]) as any;
     const limitKB = limitSetting ? parseInt(limitSetting.setting_value) : 1048576;
     res.json({ success: true, data: { total: total.c, parsed: parsed.c, pending: pending.c, totalSizeKB: totalSize.total || 0, limitKB, byType } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 私有知识文件必须经租户和文件记录校验后下载，不能再按物理文件名直接访问。
@@ -255,35 +258,35 @@ knowledgeRoutes.get("/files/:id/download", (req: AuthRequest, res) => {
       "SELECT * FROM knowledge_files WHERE id = ? AND tenant_id = ?",
       [req.params.id, req.user!.tenant_id]
     ) as any;
-    if (!file) return res.status(404).json({ success: false, error: "文件不存在或无访问权限" });
+    if (!file) return res.status(404).json({ success: false, error: knowledgeError(req, "文件不存在或无访问权限", "File not found or access is denied") });
     const storedPath = resolveStoredFile(file.file_path || "", req.user!.tenant_id);
-    if (!storedPath || !fs.existsSync(storedPath)) return res.status(404).json({ success: false, error: "文件内容不存在" });
+    if (!storedPath || !fs.existsSync(storedPath)) return res.status(404).json({ success: false, error: knowledgeError(req, "文件内容不存在", "File content is unavailable") });
     logActivity({ userId: req.user!.id, action: "knowledge_file_downloaded", entityType: "knowledge_file", entityId: file.id, tenantId: req.user!.tenant_id });
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Security-Policy", "sandbox");
     return res.download(storedPath, safeDownloadName(file.original_name || file.name));
-  } catch (err: any) { return res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { return res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 删除文件
 knowledgeRoutes.delete("/files/:id", requireAdmin, (req: AuthRequest, res) => {
   try {
     const file = dbGet("SELECT * FROM knowledge_files WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
-    if (!file) return res.status(404).json({ success: false, error: "文件不存在" });
+    if (!file) return res.status(404).json({ success: false, error: knowledgeError(req, "文件不存在", "File not found") });
     // 删除物理文件
     const fpath = resolveStoredFile((file as any).file_path || "", req.user!.tenant_id);
     if (fpath && fs.existsSync(fpath)) fs.unlinkSync(fpath);
     dbRun("DELETE FROM knowledge_files WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 重新解析
 knowledgeRoutes.post("/files/:id/reparse", requireAdmin, (req: AuthRequest, res) => {
   try {
     const file = dbGet("SELECT * FROM knowledge_files WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
-    if (!file) return res.status(404).json({ success: false, error: "文件不存在" });
+    if (!file) return res.status(404).json({ success: false, error: knowledgeError(req, "文件不存在", "File not found") });
 
     const f = file as any;
     try {
@@ -299,7 +302,7 @@ knowledgeRoutes.post("/files/:id/reparse", requireAdmin, (req: AuthRequest, res)
         [`解析失败: ${e.message}`, f.id, req.user!.tenant_id]);
     }
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 文件夹列表
@@ -326,7 +329,7 @@ knowledgeRoutes.get("/files/folders", (req: AuthRequest, res) => {
     }
 
     res.json({ success: true, data: Array.from(folderSet).sort() });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 新建文件夹
@@ -334,11 +337,11 @@ knowledgeRoutes.post("/files/folder", (req: AuthRequest, res) => {
   try {
     const { name, parent } = req.body;
     if (typeof name !== "string" || !name.trim() || name.includes("/") || name.includes("\\") || name === "." || name === "..") {
-      return res.status(400).json({ success: false, error: "文件夹名称无效" });
+      return res.status(400).json({ success: false, error: knowledgeError(req, "文件夹名称无效", "Folder name is invalid") });
     }
 
     const parentFolder = normalizeFolder(parent || "/");
-    if (!parentFolder) return res.status(400).json({ success: false, error: "父文件夹路径无效" });
+    if (!parentFolder) return res.status(400).json({ success: false, error: knowledgeError(req, "父文件夹路径无效", "Parent folder path is invalid") });
     // 检查是否已存在
     const existing = dbGet(
       "SELECT id FROM knowledge_folders WHERE tenant_id = ? AND parent_folder = ? AND name = ?",
@@ -352,7 +355,7 @@ knowledgeRoutes.post("/files/folder", (req: AuthRequest, res) => {
     );
     const fullPath = parentFolder === "/" ? `/${name}` : `${parentFolder}/${name}`;
     res.json({ success: true, data: { folder: fullPath } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 删除文件夹
@@ -360,7 +363,7 @@ knowledgeRoutes.delete("/files/folder", (req: AuthRequest, res) => {
   try {
     const { folder } = req.body;
     const normalizedFolder = normalizeFolder(folder);
-    if (!normalizedFolder || normalizedFolder === "/") return res.status(400).json({ success: false, error: "不能删除根目录或路径无效" });
+    if (!normalizedFolder || normalizedFolder === "/") return res.status(400).json({ success: false, error: knowledgeError(req, "不能删除根目录或路径无效", "The root folder cannot be deleted, or the path is invalid") });
 
     // 提取文件夹名
     const parts = normalizedFolder.split("/").filter(Boolean);
@@ -373,7 +376,7 @@ knowledgeRoutes.delete("/files/folder", (req: AuthRequest, res) => {
     dbRun("UPDATE knowledge_files SET folder = '/' WHERE tenant_id = ? AND folder = ?",
       [req.user!.tenant_id, normalizedFolder]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // 移动文件
@@ -381,11 +384,11 @@ knowledgeRoutes.put("/files/:id/move", (req: AuthRequest, res) => {
   try {
     const { folder } = req.body;
     const normalizedFolder = normalizeFolder(folder);
-    if (!normalizedFolder) return res.status(400).json({ success: false, error: "目标文件夹路径无效" });
+    if (!normalizedFolder) return res.status(400).json({ success: false, error: knowledgeError(req, "目标文件夹路径无效", "Target folder path is invalid") });
     dbRun("UPDATE knowledge_files SET folder = ? WHERE id = ? AND tenant_id = ?",
       [normalizedFolder, req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // ===== 语料库检索 =====
@@ -406,7 +409,7 @@ knowledgeRoutes.get("/corpus/search", (req: AuthRequest, res) => {
       [tid, `%${q}%`, `%${q}%`, `%${q}%`, tid, `%${q}%`, `%${q}%`]
     );
     res.json({ success: true, data: results });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: knowledgeError(req, "知识库服务暂时不可用，请稍后重试", "Knowledge base service is temporarily unavailable. Please try again") }); }
 });
 
 // ===== 智能编码读取 =====
