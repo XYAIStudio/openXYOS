@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { authFetch } from "../api/authFetch";
+import { useLocale } from "../i18n";
 import { Shield, Network, FileText, History, Plus, Save, Trash2, BarChart3, CheckCircle, XCircle, Clock, RefreshCw, Eye, TrendingUp, Zap } from "lucide-react";
 
 const TABS = [
@@ -21,6 +22,7 @@ const ROLE_LEVELS = [
 const PERMISSION_TYPES = ["command", "view", "approve", "dispatch", "report", "create", "update", "delete", "assign"];
 
 export default function GovernancePage() {
+  const { t } = useLocale();
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState<any>(null);
   const [permissions, setPermissions] = useState<any[]>([]);
@@ -77,7 +79,7 @@ export default function GovernancePage() {
   };
 
   const handleDeleteTemplate = async (id: number) => {
-    if (!confirm("确定删除此流程模板？")) return;
+    if (!confirm(t("确定删除此流程模板？", "Delete this process template?"))) return;
     try {
       await authFetch(`/api/governance/templates/${id}`, { method: "DELETE" });
       await fetchData();
@@ -85,7 +87,7 @@ export default function GovernancePage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-full"><div className="text-text-muted animate-pulse">加载中...</div></div>;
+    return <div className="flex items-center justify-center h-full"><div className="text-text-muted animate-pulse">{t("加载中...", "Loading...")}</div></div>;
   }
 
   return (
@@ -94,14 +96,14 @@ export default function GovernancePage() {
       <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-card">
         <div className="flex items-center gap-2">
           <Shield size={18} className="text-primary" />
-          <h1 className="text-base font-bold text-text">治理引擎</h1>
+          <h1 className="text-base font-bold text-text">{t("治理引擎", "Governance Engine")}</h1>
           <span className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary font-medium">P12</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => fetchData()}
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-text-muted hover:text-text border border-border rounded hover:bg-bg transition-colors">
             <RefreshCw size={12} />
-            刷新
+            {t("刷新", "Refresh")}
           </button>
         </div>
       </div>
@@ -116,7 +118,7 @@ export default function GovernancePage() {
                 : "text-text-muted hover:text-text"
             }`}>
             <tab.icon size={14} />
-            {tab.label}
+            {t(tab.label, ({"概览":"Overview","权限矩阵":"Permission matrix","通信规则":"Communication rules","流程模板":"Process templates","治理日志":"Governance logs"} as Record<string,string>)[tab.label] || tab.label)}
           </button>
         ))}
       </div>
@@ -135,7 +137,7 @@ export default function GovernancePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDetailModal(null)}>
           <div className="bg-bg-card border border-border rounded-lg w-[500px] max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h3 className="text-sm font-bold text-text">治理日志详情</h3>
+              <h3 className="text-sm font-bold text-text">{t("治理日志详情", "Governance log details")}</h3>
               <button onClick={() => setDetailModal(null)} className="text-text-muted hover:text-text">
                 <XCircle size={16} />
               </button>
@@ -143,11 +145,11 @@ export default function GovernancePage() {
             <div className="p-4 overflow-auto max-h-[60vh] space-y-3">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-bg p-2 rounded"><span className="text-text-muted">ID:</span> {detailModal.data.id}</div>
-                <div className="bg-bg p-2 rounded"><span className="text-text-muted">时间:</span> {detailModal.data.created_at}</div>
-                <div className="bg-bg p-2 rounded"><span className="text-text-muted">操作者类型:</span> {detailModal.data.actor_type}</div>
-                <div className="bg-bg p-2 rounded"><span className="text-text-muted">操作者ID:</span> {detailModal.data.actor_id}</div>
-                <div className="bg-bg p-2 rounded"><span className="text-text-muted">操作者层级:</span> L{detailModal.data.actor_level || "-"}</div>
-                <div className="bg-bg p-2 rounded"><span className="text-text-muted">结果:</span> 
+                <div className="bg-bg p-2 rounded"><span className="text-text-muted">{t("时间:", "Time:")}</span> {detailModal.data.created_at}</div>
+                <div className="bg-bg p-2 rounded"><span className="text-text-muted">{t("操作者类型:", "Actor type:")}</span> {detailModal.data.actor_type}</div>
+                <div className="bg-bg p-2 rounded"><span className="text-text-muted">{t("操作者ID:", "Actor ID:")}</span> {detailModal.data.actor_id}</div>
+                <div className="bg-bg p-2 rounded"><span className="text-text-muted">{t("操作者层级:", "Actor level:")}</span> L{detailModal.data.actor_level || "-"}</div>
+                <div className="bg-bg p-2 rounded"><span className="text-text-muted">{t("结果:", "Result:")}</span>
                   <span className={`ml-1 font-bold ${detailModal.data.result === "allow" ? "text-green-500" : detailModal.data.result === "deny" ? "text-red-500" : "text-amber-500"}`}>
                     {detailModal.data.result}
                   </span>
@@ -155,25 +157,25 @@ export default function GovernancePage() {
               </div>
               {detailModal.data.permission_check && (
                 <div className="bg-bg p-2 rounded text-xs">
-                  <span className="text-text-muted">权限校验:</span>
+                  <span className="text-text-muted">{t("权限校验:", "Permission check:")}</span>
                   <div className="mt-1 text-text">{detailModal.data.permission_check}</div>
                 </div>
               )}
               {detailModal.data.comm_rule_check && (
                 <div className="bg-bg p-2 rounded text-xs">
-                  <span className="text-text-muted">通信规则校验:</span>
+                  <span className="text-text-muted">{t("通信规则校验:", "Communication check:")}</span>
                   <div className="mt-1 text-text">{detailModal.data.comm_rule_check}</div>
                 </div>
               )}
               {detailModal.data.process_check && (
                 <div className="bg-bg p-2 rounded text-xs">
-                  <span className="text-text-muted">流程校验:</span>
+                  <span className="text-text-muted">{t("流程校验:", "Process check:")}</span>
                   <div className="mt-1 text-text">{detailModal.data.process_check}</div>
                 </div>
               )}
               {detailModal.data.reason && (
                 <div className="bg-bg p-2 rounded text-xs">
-                  <span className="text-text-muted">原因:</span>
+                  <span className="text-text-muted">{t("原因:", "Reason:")}</span>
                   <div className="mt-1 text-text">{detailModal.data.reason}</div>
                 </div>
               )}
@@ -187,6 +189,7 @@ export default function GovernancePage() {
 
 // 概览Tab
 function OverviewTab({ stats }: { stats: any }) {
+  const { t } = useLocale();
   const { overview, actionStats, levelStats, recentTrend } = stats;
   const maxTrend = Math.max(...recentTrend.map((t: any) => t.total), 1);
 
@@ -199,7 +202,7 @@ function OverviewTab({ stats }: { stats: any }) {
             <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center">
               <Shield size={16} className="text-blue-600" />
             </div>
-            <span className="text-xs text-text-muted">总治理次数</span>
+            <span className="text-xs text-text-muted">{t("总治理次数", "Total governance actions")}</span>
           </div>
           <div className="text-2xl font-bold text-text">{overview.totalLogs}</div>
         </div>
@@ -208,7 +211,7 @@ function OverviewTab({ stats }: { stats: any }) {
             <div className="w-8 h-8 rounded bg-green-100 flex items-center justify-center">
               <CheckCircle size={16} className="text-green-600" />
             </div>
-            <span className="text-xs text-text-muted">通过率</span>
+            <span className="text-xs text-text-muted">{t("通过率", "Approval rate")}</span>
           </div>
           <div className="text-2xl font-bold text-green-500">{overview.allowRate}%</div>
           <div className="text-xs text-text-muted mt-1">{overview.allowedLogs} / {overview.totalLogs}</div>
@@ -218,7 +221,7 @@ function OverviewTab({ stats }: { stats: any }) {
             <div className="w-8 h-8 rounded bg-red-100 flex items-center justify-center">
               <XCircle size={16} className="text-red-600" />
             </div>
-            <span className="text-xs text-text-muted">拒绝次数</span>
+            <span className="text-xs text-text-muted">{t("拒绝次数", "Denied")}</span>
           </div>
           <div className="text-2xl font-bold text-red-500">{overview.deniedLogs}</div>
         </div>
@@ -227,7 +230,7 @@ function OverviewTab({ stats }: { stats: any }) {
             <div className="w-8 h-8 rounded bg-amber-100 flex items-center justify-center">
               <Clock size={16} className="text-amber-600" />
             </div>
-            <span className="text-xs text-text-muted">待审批</span>
+            <span className="text-xs text-text-muted">{t("待审批", "Pending approval")}</span>
           </div>
           <div className="text-2xl font-bold text-amber-500">{overview.pendingLogs}</div>
         </div>
@@ -236,15 +239,15 @@ function OverviewTab({ stats }: { stats: any }) {
       {/* 规则统计 */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-bg-card border border-border rounded-lg p-4">
-          <div className="text-xs text-text-muted mb-1">权限规则数</div>
+          <div className="text-xs text-text-muted mb-1">{t("权限规则数", "Permission rules")}</div>
           <div className="text-xl font-bold text-primary">{overview.permCount}</div>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
-          <div className="text-xs text-text-muted mb-1">通信规则数</div>
+          <div className="text-xs text-text-muted mb-1">{t("通信规则数", "Communication rules")}</div>
           <div className="text-xl font-bold text-blue-500">{overview.commRuleCount}</div>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
-          <div className="text-xs text-text-muted mb-1">流程模板数</div>
+          <div className="text-xs text-text-muted mb-1">{t("流程模板数", "Process templates")}</div>
           <div className="text-xl font-bold text-purple-500">{overview.templateCount}</div>
         </div>
       </div>
@@ -253,10 +256,10 @@ function OverviewTab({ stats }: { stats: any }) {
         {/* 按操作类型统计 */}
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-2">
-            <Zap size={14} /> 按操作类型统计
+            <Zap size={14} /> {t("按操作类型统计", "By action type")}
           </h3>
           {actionStats.length === 0 ? (
-            <div className="text-center py-4 text-text-muted text-xs">暂无数据</div>
+            <div className="text-center py-4 text-text-muted text-xs">{t("暂无数据", "No data")}</div>
           ) : (
             <div className="space-y-2">
               {actionStats.map((item: any) => {
@@ -278,10 +281,10 @@ function OverviewTab({ stats }: { stats: any }) {
         {/* 按层级统计 */}
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-2">
-            <TrendingUp size={14} /> 按角色层级统计
+            <TrendingUp size={14} /> {t("按角色层级统计", "By role level")}
           </h3>
           {levelStats.length === 0 ? (
-            <div className="text-center py-4 text-text-muted text-xs">暂无数据</div>
+            <div className="text-center py-4 text-text-muted text-xs">{t("暂无数据", "No data")}</div>
           ) : (
             <div className="space-y-2">
               {levelStats.map((item: any) => {
@@ -305,7 +308,7 @@ function OverviewTab({ stats }: { stats: any }) {
       {/* 7天趋势 */}
       <div className="bg-bg-card border border-border rounded-lg p-4">
         <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-2">
-          <BarChart3 size={14} /> 7天治理趋势
+          <BarChart3 size={14} /> {t("7天治理趋势", "7-day governance trend")}
         </h3>
         <div className="flex items-end gap-2 h-32">
           {recentTrend.map((day: any, idx: number) => {
@@ -323,8 +326,8 @@ function OverviewTab({ stats }: { stats: any }) {
           })}
         </div>
         <div className="flex items-center gap-4 mt-3 justify-center">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded" /><span className="text-[10px] text-text-muted">通过</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded" /><span className="text-[10px] text-text-muted">拒绝</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded" /><span className="text-[10px] text-text-muted">{t("通过", "Allowed")}</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded" /><span className="text-[10px] text-text-muted">{t("拒绝", "Denied")}</span></div>
         </div>
       </div>
     </div>
@@ -333,6 +336,7 @@ function OverviewTab({ stats }: { stats: any }) {
 
 // 权限矩阵Tab
 function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => void }) {
+  const { t, locale } = useLocale();
   const [editData, setEditData] = useState<any[]>([]);
 
   useEffect(() => { setEditData([...data]); }, [data]);
@@ -351,16 +355,16 @@ function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => v
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-text-muted">点击单元格切换权限状态（9种原子权限 × 5个层级）</p>
+        <p className="text-sm text-text-muted">{t("点击单元格切换权限状态（9种原子权限 × 5个层级）", "Click a cell to toggle permissions (9 atomic permissions × 5 levels)")}</p>
         <button onClick={() => onSave(editData)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:opacity-90">
-          <Save size={14} /> 保存
+          <Save size={14} /> {t("保存", "Save")}
         </button>
       </div>
       <div className="overflow-x-auto bg-bg-card border border-border rounded-lg">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-text-muted font-medium">角色层级</th>
+              <th className="text-left py-3 px-4 text-text-muted font-medium">{t("角色层级", "Role level")}</th>
               {PERMISSION_TYPES.map((p) => (
                 <th key={p} className="text-center py-3 px-2 text-text-muted font-medium text-xs">{p}</th>
               ))}
@@ -392,6 +396,7 @@ function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => v
 
 // 通信规则Tab
 function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => void }) {
+  const { t, locale } = useLocale();
   const [editData, setEditData] = useState<any[]>([]);
 
   useEffect(() => { setEditData([...data]); }, [data]);
@@ -410,14 +415,14 @@ function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => voi
   const getRule = (sender: number, receiver: number, type: string) => editData.find((r) => r.sender_level === sender && r.receiver_level === receiver && r.comm_type === type);
 
   const commTypes = ["direct", "delegate", "escalate"];
-  const commTypeLabels: Record<string, string> = { direct: "直接通信", delegate: "委托通信", escalate: "上报通信" };
+  const commTypeLabels: Record<string, string> = { direct: t("直接通信", "Direct"), delegate: t("委托通信", "Delegate"), escalate: t("上报通信", "Escalate") };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-text-muted">跨层级通信规则配置（5×5矩阵 × 3种通信类型）</p>
+        <p className="text-sm text-text-muted">{t("跨层级通信规则配置（5×5矩阵 × 3种通信类型）", "Cross-level communication rules (5×5 matrix × 3 communication types)")}</p>
         <button onClick={() => onSave(editData)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:opacity-90">
-          <Save size={14} /> 保存
+          <Save size={14} /> {t("保存", "Save")}
         </button>
       </div>
       {commTypes.map((type) => (
@@ -427,7 +432,7 @@ function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => voi
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-2 px-4 text-text-muted font-medium text-xs">发送方 ↓ → 接收方 →</th>
+                  <th className="text-left py-2 px-4 text-text-muted font-medium text-xs">{t("发送方 ↓ → 接收方 →", "Sender ↓ → Receiver →")}</th>
                   {ROLE_LEVELS.map((r) => (
                     <th key={r.level} className="text-center py-2 px-2 text-text-muted font-medium text-xs">{r.name}</th>
                   ))}
@@ -462,13 +467,14 @@ function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => voi
 
 // 流程模板Tab
 function TemplatesTab({ data, onDelete }: { data: any[]; onDelete: (id: number) => void }) {
+  const { t } = useLocale();
   return (
     <div>
       {data.length === 0 ? (
         <div className="text-center py-12 text-text-muted">
           <FileText size={48} className="mx-auto mb-4 opacity-30" />
-          <p>暂无流程模板</p>
-          <p className="text-xs mt-2">系统将自动创建默认模板</p>
+          <p>{t("暂无流程模板", "No process templates")}</p>
+          <p className="text-xs mt-2">{t("系统将自动创建默认模板", "Default templates will be created automatically")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -479,7 +485,7 @@ function TemplatesTab({ data, onDelete }: { data: any[]; onDelete: (id: number) 
                   <FileText size={16} className="text-primary" />
                   <h3 className="font-medium text-text text-sm">{tpl.name}</h3>
                   {tpl.is_default ? (
-                    <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded">默认</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded">{t("默认", "Default")}</span>
                   ) : null}
                 </div>
                 <button onClick={() => onDelete(tpl.id)}
@@ -487,10 +493,10 @@ function TemplatesTab({ data, onDelete }: { data: any[]; onDelete: (id: number) 
                   <Trash2 size={14} />
                 </button>
               </div>
-              <p className="text-xs text-text-muted mb-2">{tpl.description || "无描述"}</p>
+              <p className="text-xs text-text-muted mb-2">{tpl.description || t("无描述", "No description")}</p>
               <div className="flex items-center gap-2 text-[10px]">
-                <span className="px-2 py-0.5 bg-bg rounded text-text-muted">类型: {tpl.template_type}</span>
-                <span className="px-2 py-0.5 bg-bg rounded text-text-muted">创建: {tpl.created_at?.slice(0, 10)}</span>
+                <span className="px-2 py-0.5 bg-bg rounded text-text-muted">{t("类型: ", "Type: ")}{tpl.template_type}</span>
+                <span className="px-2 py-0.5 bg-bg rounded text-text-muted">{t("创建: ", "Created: ")}{tpl.created_at?.slice(0, 10)}</span>
               </div>
             </div>
           ))}
@@ -502,6 +508,7 @@ function TemplatesTab({ data, onDelete }: { data: any[]; onDelete: (id: number) 
 
 // 治理日志Tab
 function LogsTab({ data, onDetail }: { data: any[]; onDetail: (modal: { type: string; data: any }) => void }) {
+  const { t } = useLocale();
   const resultColor = (r: string) => r === "allow" ? "text-green-500" : r === "deny" ? "text-red-500" : "text-amber-500";
   const resultBg = (r: string) => r === "allow" ? "bg-green-100" : r === "deny" ? "bg-red-100" : "bg-amber-100";
 
@@ -510,20 +517,20 @@ function LogsTab({ data, onDetail }: { data: any[]; onDetail: (modal: { type: st
       {data.length === 0 ? (
         <div className="text-center py-12 text-text-muted">
           <History size={48} className="mx-auto mb-4 opacity-30" />
-          <p>暂无治理日志</p>
+          <p>{t("暂无治理日志", "No governance logs")}</p>
         </div>
       ) : (
         <div className="bg-bg-card border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-text-muted">
-                <th className="text-left py-3 px-4">时间</th>
-                <th className="text-left py-3 px-4">操作者</th>
-                <th className="text-left py-3 px-4">层级</th>
-                <th className="text-left py-3 px-4">操作</th>
-                <th className="text-left py-3 px-4">目标</th>
-                <th className="text-center py-3 px-4">结果</th>
-                <th className="text-center py-3 px-4">操作</th>
+                <th className="text-left py-3 px-4">{t("时间", "Time")}</th>
+                <th className="text-left py-3 px-4">{t("操作者", "Actor")}</th>
+                <th className="text-left py-3 px-4">{t("层级", "Level")}</th>
+                <th className="text-left py-3 px-4">{t("操作", "Action")}</th>
+                <th className="text-left py-3 px-4">{t("目标", "Target")}</th>
+                <th className="text-center py-3 px-4">{t("结果", "Result")}</th>
+                <th className="text-center py-3 px-4">{t("操作", "Action")}</th>
               </tr>
             </thead>
             <tbody>
