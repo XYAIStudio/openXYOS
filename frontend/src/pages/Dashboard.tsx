@@ -7,6 +7,7 @@ import {
 import { authFetch } from "../api/authFetch";
 import { useAuthStore } from "../stores/auth";
 import { useNavigate } from "react-router-dom";
+import { useLocale } from "../i18n";
 
 interface ModuleData {
   org: { departments: number; totalEmployees: number; aiEmployees: number; humanEmployees: number };
@@ -87,6 +88,7 @@ function ModuleCard({
 
 export default function Dashboard() {
   const { user } = useAuthStore();
+  const { t, locale, isEnglish } = useLocale();
   const [modules, setModules] = useState<ModuleData | null>(null);
   const [activities, setActivities] = useState<ActivitiesItem[]>([]);
   const [performance, setPerformance] = useState<PerformanceItem[]>([]);
@@ -110,16 +112,18 @@ export default function Dashboard() {
   }, []);
 
   const hour = new Date().getHours();
-  const greeting = hour < 6 ? "夜深了" : hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
+  const greeting = hour < 6 ? t("夜深了", "Good night") : hour < 12 ? t("早上好", "Good morning") : hour < 18 ? t("下午好", "Good afternoon") : t("晚上好", "Good evening");
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-text-muted">
-      <Activity size={20} className="animate-spin mr-2" />加载中...
+      <Activity size={20} className="animate-spin mr-2" />{t("加载中...", "Loading...")}
     </div>
   );
 
   const m = modules;
-  if (!m) return <div className="p-5 text-text-muted text-sm">数据加载失败，请刷新页面</div>;
+  if (!m) return <div className="p-5 text-text-muted text-sm">{t("数据加载失败，请刷新页面", "Unable to load data. Refresh the page.")}</div>;
+
+  const displayCurrency = (value: number) => isEnglish ? new Intl.NumberFormat("en-US", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value) : "¥" + fmtCurrency(value);
 
   const topPerformers = performance
     .filter(e => e.employee_type === "ai")
@@ -133,20 +137,20 @@ export default function Dashboard() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="px-2 py-0.5 rounded bg-primary-bg text-primary text-[10px] font-semibold border border-primary-light">系统</span>
+              <span className="px-2 py-0.5 rounded bg-primary-bg text-primary text-[10px] font-semibold border border-primary-light">{t("系统", "System")}</span>
               <span className="flex items-center gap-1 text-text-muted text-[10px]">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />运行中
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />{t("运行中", "Running")}
               </span>
             </div>
-            <h1 className="text-lg font-bold text-text">{greeting}，{user?.nickname || "用户"}</h1>
+            <h1 className="text-lg font-bold text-text">{greeting}{locale === "en" ? ", " : "，"}{user?.nickname || t("用户", "User")}</h1>
             <p className="text-xs text-text-muted mt-0.5">
-              AI赋能下的人机共融企业管理效能增强管理系统 · {m.org.aiEmployees}位AI员工正在为您工作
+              {t("AI赋能下的人机共融企业管理效能增强管理系统 · ", "AI-native human-machine organizational workspace · ")}{m.org.aiEmployees}{t("位AI员工正在为您工作", " AI employees are working for you")}
             </p>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <div className="text-center"><div className="text-xl font-bold text-primary">{m.org.totalEmployees}</div><div className="text-[10px] text-text-muted">总员工</div></div>
-            <div className="text-center"><div className="text-xl font-bold text-success">{m.tasks.done}</div><div className="text-[10px] text-text-muted">已完成任务</div></div>
-            <div className="text-center"><div className="text-xl font-bold text-accent">{m.tasks.completionRate}%</div><div className="text-[10px] text-text-muted">完成率</div></div>
+            <div className="text-center"><div className="text-xl font-bold text-primary">{m.org.totalEmployees}</div><div className="text-[10px] text-text-muted">{t("总员工", "Total employees")}</div></div>
+            <div className="text-center"><div className="text-xl font-bold text-success">{m.tasks.done}</div><div className="text-[10px] text-text-muted">{t("已完成任务", "Completed tasks")}</div></div>
+            <div className="text-center"><div className="text-xl font-bold text-accent">{m.tasks.completionRate}%</div><div className="text-[10px] text-text-muted">{t("完成率", "Completion rate")}</div></div>
           </div>
         </div>
       </section>
@@ -155,42 +159,42 @@ export default function Dashboard() {
       <div className="space-y-3">
         {/* Row 1: 组织人事 */}
         <div>
-          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">组织人事</h3>
+          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">{t("组织人事", "Organization & people")}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard
-              icon={Building2} title="组织架构" path="/org"
+              icon={Building2} title={t("组织架构", "Organization")} path="/org"
               color="#165DFF" bg="#E8F3FF"
               metrics={[
-                { label: "部门数", value: m.org.departments },
-                { label: "总员工", value: m.org.totalEmployees, highlight: true },
-                { label: "AI员工", value: m.org.aiEmployees },
+                { label: t("部门数", "Departments"), value: m.org.departments },
+                { label: t("总员工", "Total employees"), value: m.org.totalEmployees, highlight: true },
+                { label: t("AI员工", "AI employees"), value: m.org.aiEmployees },
               ]}
             />
             <ModuleCard
-              icon={Users} title="员工管理" path="/employees"
+              icon={Users} title={t("员工管理", "People")} path="/employees"
               color="#10B981" bg="#ECFDF5"
               metrics={[
-                { label: "人类员工", value: m.org.humanEmployees },
-                { label: "AI员工", value: m.org.aiEmployees },
-                { label: "在职率", value: Math.round((m.org.totalEmployees / (m.org.totalEmployees + 1)) * 100) + "%" },
+                { label: t("人类员工", "Human employees"), value: m.org.humanEmployees },
+                { label: t("AI员工", "AI employees"), value: m.org.aiEmployees },
+                { label: t("在职率", "Active rate"), value: Math.round((m.org.totalEmployees / (m.org.totalEmployees + 1)) * 100) + "%" },
               ]}
             />
             <ModuleCard
-              icon={BarChart3} title="绩效评估" path="/performance"
+              icon={BarChart3} title={t("绩效评估", "Performance")} path="/performance"
               color="#722ED1" bg="#F5E5FF"
               metrics={[
-                { label: "评估次数", value: m.performance.reviews },
-                { label: "均分", value: m.performance.avgScore + "分", highlight: true },
-                { label: "上次周期", value: "2026-Q2" },
+                { label: t("评估次数", "Reviews"), value: m.performance.reviews },
+                { label: t("均分", "Average score"), value: m.performance.avgScore + (isEnglish ? "" : "分"), highlight: true },
+                { label: t("上次周期", "Latest cycle"), value: "2026-Q2" },
               ]}
             />
             <ModuleCard
-              icon={Package} title="技能插件" path="/skills"
+              icon={Package} title={t("技能插件", "Skills & plugins")} path="/skills"
               color="#FF7D00" bg="#FFF7ED"
               metrics={[
-                { label: "技能库", value: m.skills.skills },
-                { label: "插件", value: m.skills.plugins },
-                { label: "人才池", value: m.skills.talent, highlight: true },
+                { label: t("技能库", "Skills"), value: m.skills.skills },
+                { label: t("插件", "Plugins"), value: m.skills.plugins },
+                { label: t("人才池", "Talent pool"), value: m.skills.talent, highlight: true },
               ]}
             />
           </div>
@@ -198,41 +202,41 @@ export default function Dashboard() {
 
         {/* Row 2: 协同办公 */}
         <div>
-          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">协同办公</h3>
+          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">{t("协同办公", "Collaboration")}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard
-              icon={ListTodo} title="任务管理" path="/tasks"
+              icon={ListTodo} title={t("任务管理", "Tasks")} path="/tasks"
               color="#165DFF" bg="#E8F3FF"
               metrics={[
-                { label: "待办", value: m.tasks.todo },
-                { label: "进行中", value: m.tasks.in_progress },
-                { label: "已完成", value: m.tasks.done, highlight: true },
-                { label: "完成率", value: m.tasks.completionRate + "%" },
+                { label: t("待办", "To do"), value: m.tasks.todo },
+                { label: t("进行中", "In progress"), value: m.tasks.in_progress },
+                { label: t("已完成", "Completed"), value: m.tasks.done, highlight: true },
+                { label: t("完成率", "Completion"), value: m.tasks.completionRate + "%" },
               ]}
             />
             <ModuleCard
-              icon={MessageSquare} title="沟通协作" path="/chat"
+              icon={MessageSquare} title={t("沟通协作", "Collaboration")} path="/chat"
               color="#10B981" bg="#ECFDF5"
               metrics={[
-                { label: "群聊", value: m.chat.chats },
-                { label: "消息", value: fmtValue(m.chat.messages), highlight: true },
+                { label: t("群聊", "Groups"), value: m.chat.chats },
+                { label: t("消息", "Messages"), value: fmtValue(m.chat.messages), highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Workflow} title="流程管理" path="/workflows"
+              icon={Workflow} title={t("流程管理", "Workflows")} path="/workflows"
               color="#722ED1" bg="#F5E5FF"
               metrics={[
-                { label: "流程总数", value: m.workflows.total },
-                { label: "运行中", value: m.workflows.active, highlight: true },
+                { label: t("流程总数", "Workflows"), value: m.workflows.total },
+                { label: t("运行中", "Active"), value: m.workflows.active, highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Target} title="目标管理" path="/goals"
+              icon={Target} title={t("目标管理", "Goals")} path="/goals"
               color="#FF7D00" bg="#FFF7ED"
               metrics={[
-                { label: "总目标", value: m.goals.total },
-                { label: "进行中", value: m.goals.active },
-                { label: "已完成", value: m.goals.completed, highlight: true },
+                { label: t("总目标", "Total goals"), value: m.goals.total },
+                { label: t("进行中", "In progress"), value: m.goals.active },
+                { label: t("已完成", "Completed"), value: m.goals.completed, highlight: true },
               ]}
             />
           </div>
@@ -240,44 +244,44 @@ export default function Dashboard() {
 
         {/* Row 3: 资源管理 */}
         <div>
-          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">资源管理</h3>
+          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">{t("资源管理", "Resources")}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard
-              icon={Landmark} title="资产管理" path="/assets"
+              icon={Landmark} title={t("资产管理", "Assets")} path="/assets"
               color="#165DFF" bg="#E8F3FF"
               metrics={[
-                { label: "总资产", value: m.assets.total + "件" },
-                { label: "在用", value: m.assets.inUse },
-                { label: "闲置", value: m.assets.idle },
-                { label: "资产总值", value: "¥" + fmtCurrency(m.assets.totalValue), highlight: true },
+                { label: t("总资产", "Total assets"), value: isEnglish ? `${m.assets.total} assets` : m.assets.total + "件" },
+                { label: t("在用", "In use"), value: m.assets.inUse },
+                { label: t("闲置", "Idle"), value: m.assets.idle },
+                { label: t("资产总值", "Asset value"), value: displayCurrency(m.assets.totalValue), highlight: true },
               ]}
               alert={m.assets.alerts > 0 ? m.assets.alerts : undefined}
             />
             <ModuleCard
-              icon={FileText} title="合同管理" path="/contracts"
+              icon={FileText} title={t("合同管理", "Contracts")} path="/contracts"
               color="#10B981" bg="#ECFDF5"
               metrics={[
-                { label: "合同总数", value: m.contracts.total },
-                { label: "生效中", value: m.contracts.active, highlight: true },
-                { label: "合同价值", value: "¥" + fmtCurrency(m.contracts.activeValue) },
+                { label: t("合同总数", "Total contracts"), value: m.contracts.total },
+                { label: t("生效中", "Active"), value: m.contracts.active, highlight: true },
+                { label: t("合同价值", "Contract value"), value: displayCurrency(m.contracts.activeValue) },
               ]}
               alert={m.contracts.paymentsOverdue > 0 ? m.contracts.paymentsOverdue : undefined}
             />
             <ModuleCard
-              icon={DollarSign} title="预算管理" path="/budgets"
+              icon={DollarSign} title={t("预算管理", "Budgets")} path="/budgets"
               color="#722ED1" bg="#F5E5FF"
               metrics={[
-                { label: "预算项", value: m.budgets.total },
-                { label: "总预算", value: "¥" + fmtCurrency(m.budgets.totalAmount), highlight: true },
+                { label: t("预算项", "Budget items"), value: m.budgets.total },
+                { label: t("总预算", "Total budget"), value: displayCurrency(m.budgets.totalAmount), highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Gauge} title="效能仪表板" path="/efficiency"
+              icon={Gauge} title={t("效能仪表板", "Efficiency")} path="/efficiency"
               color="#FF7D00" bg="#FFF7ED"
               metrics={[
-                { label: "例行事务", value: m.efficiency.routines, highlight: true },
-                { label: "已启用", value: m.efficiency.active },
-                { label: "启用率", value: m.efficiency.routines > 0 ? Math.round((m.efficiency.active / m.efficiency.routines) * 100) + "%" : "0%" },
+                { label: t("例行事务", "Routines"), value: m.efficiency.routines, highlight: true },
+                { label: t("已启用", "Enabled"), value: m.efficiency.active },
+                { label: t("启用率", "Enabled rate"), value: m.efficiency.routines > 0 ? Math.round((m.efficiency.active / m.efficiency.routines) * 100) + "%" : "0%" },
               ]}
             />
           </div>
@@ -285,34 +289,34 @@ export default function Dashboard() {
 
         {/* Row 4: 智能分析 & 系统管理 */}
         <div>
-          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">智能分析与系统</h3>
+          <h3 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-1">{t("智能分析与系统", "Intelligence & system")}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard
-              icon={BookOpen} title="知识库" path="/knowledge"
+              icon={BookOpen} title={t("知识库", "Knowledge base")} path="/knowledge"
               color="#165DFF" bg="#E8F3FF"
               metrics={[
-                { label: "知识笔记", value: m.knowledge.notes, highlight: true },
+                { label: t("知识笔记", "Knowledge notes"), value: m.knowledge.notes, highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Brain} title="反思引擎" path="/reflections"
+              icon={Brain} title={t("反思引擎", "Reflection engine")} path="/reflections"
               color="#10B981" bg="#ECFDF5"
               metrics={[
-                { label: "反思记录", value: m.reflections.total, highlight: true },
+                { label: t("反思记录", "Reflections"), value: m.reflections.total, highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Shield} title="治理引擎" path="/governance"
+              icon={Shield} title={t("治理引擎", "Governance engine")} path="/governance"
               color="#722ED1" bg="#F5E5FF"
               metrics={[
-                { label: "治理规则", value: m.governance.rules, highlight: true },
+                { label: t("治理规则", "Governance rules"), value: m.governance.rules, highlight: true },
               ]}
             />
             <ModuleCard
-              icon={Search} title="审计追溯" path="/audit"
+              icon={Search} title={t("审计追溯", "Audit trail")} path="/audit"
               color="#FF7D00" bg="#FFF7ED"
               metrics={[
-                { label: "审计日志", value: m.audit.logs, highlight: true },
+                { label: t("审计日志", "Audit records"), value: m.audit.logs, highlight: true },
               ]}
             />
           </div>
@@ -326,7 +330,7 @@ export default function Dashboard() {
           <section className="bg-bg-card border border-border px-5 py-4 rounded-lg h-full">
             <div className="flex items-center gap-2 mb-4">
               <Bot size={14} className="text-accent" />
-              <h3 className="text-sm font-semibold text-text">AI员工效能排行</h3>
+              <h3 className="text-sm font-semibold text-text">{t("AI员工效能排行", "AI employee performance")}</h3>
             </div>
             <div className="space-y-2">
               {topPerformers.map((emp) => (
@@ -356,7 +360,7 @@ export default function Dashboard() {
                 </div>
               ))}
               {topPerformers.length === 0 && (
-                <p className="text-xs text-text-muted text-center py-4">暂无AI员工数据</p>
+                <p className="text-xs text-text-muted text-center py-4">{t("暂无AI员工数据", "No AI employee data yet")}</p>
               )}
             </div>
           </section>
@@ -368,21 +372,21 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-info" />
-                <h3 className="text-sm font-semibold text-text">最近活动</h3>
+                <h3 className="text-sm font-semibold text-text">{t("最近活动", "Recent activity")}</h3>
               </div>
-              <span className="text-[10px] text-text-muted">实时更新</span>
+              <span className="text-[10px] text-text-muted">{t("实时更新", "Live updates")}</span>
             </div>
             <div className="space-y-3">
               {activities.length === 0 && (
-                <p className="text-xs text-text-muted text-center py-6">暂无活动记录</p>
+                <p className="text-xs text-text-muted text-center py-6">{t("暂无活动记录", "No recent activity")}</p>
               )}
               {activities.map((act, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 pb-3 border-b border-border/50 last:border-0 last:pb-0">
                   <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-text leading-relaxed">{act.details || act.action || "系统操作"}</p>
+                    <p className="text-xs text-text leading-relaxed">{act.details || act.action || t("系统操作", "System activity")}</p>
                     <p className="text-[10px] text-text-muted mt-0.5">
-                      {act.user_name || act.employee_name || "系统"}
+                      {act.user_name || act.employee_name || t("系统", "System")}
                       {act.created_at && ` · ${act.created_at.replace("T", " ").substring(0, 16)}`}
                     </p>
                   </div>
