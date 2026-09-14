@@ -66,8 +66,8 @@ export default function AuthPage() {
           <div className="text-center mb-8">
             <div className={`w-16 h-16 mx-auto mb-5 ${R} flex items-center justify-center text-3xl shadow-lg`}
               style={{ background: "linear-gradient(135deg, #10B981, #059669)", boxShadow: "0 8px 24px rgba(16,185,129,0.25)" }}>🏢</div>
-            <h2 className="text-xl font-bold text-text mb-2">欢迎使用 openXYOS</h2>
-            <p className="text-sm text-text-muted">登录或注册，开启AI驱动的智能管理</p>
+            <h2 className="text-xl font-bold text-text mb-2">{tx("欢迎使用 openXYOS", "Welcome to openXYOS")}</h2>
+            <p className="text-sm text-text-muted">{tx("登录或注册，开启AI驱动的智能管理", "Sign in or create an account to begin AI-native management.")}</p>
           </div>
 
           <div className={`flex items-center gap-3 bg-primary-bg border border-primary-light ${R} px-4 py-3 mb-5 text-[13px] text-text`}>
@@ -112,7 +112,7 @@ export default function AuthPage() {
               <span className="text-xs text-text-muted leading-relaxed">
                 {tx("我已阅读并同意", "I have read and agree to the")}
                 <Link to="/user-agreement" target="_blank" className="text-primary hover:underline mx-0.5">{tx("《用户服务协议》", "Terms of Service")}</Link>
-                和
+                {tx("和", "and")}
                 <Link to="/privacy-policy" target="_blank" className="text-primary hover:underline mx-0.5">{tx("《隐私政策》", "Privacy Policy")}</Link>
               </span>
             </label>
