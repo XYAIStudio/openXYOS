@@ -70,8 +70,11 @@ export function useLocale() {
 
 export function LanguageToggle({ className = "" }: { className?: string }) {
   const { locale, setLocale } = useLocale();
-  return <div className={`inline-flex items-center rounded border border-border bg-bg-card p-0.5 text-xs ${className}`} aria-label="Language">
-    <button type="button" onClick={() => setLocale("zh-CN")} className={`rounded px-2 py-1 transition-colors ${locale === "zh-CN" ? "bg-primary text-white" : "text-text-muted hover:text-text"}`}>简体中文</button>
-    <button type="button" onClick={() => setLocale("en")} className={`rounded px-2 py-1 transition-colors ${locale === "en" ? "bg-primary text-white" : "text-text-muted hover:text-text"}`}>English</button>
-  </div>;
+  return <label className={"language-select " + className}>
+    <span className="sr-only">Language</span>
+    <select value={locale} onChange={event => setLocale(event.target.value as Locale)} aria-label="Language">
+      <option value="zh-CN">中文</option>
+      <option value="en">English</option>
+    </select>
+  </label>;
 }

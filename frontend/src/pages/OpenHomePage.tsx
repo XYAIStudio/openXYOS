@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Blocks, Bot, Braces, Building2, Check, ChevronDown, CircleDot, Code2, Copy, Eye, EyeOff, GitBranch, Github, KeyRound, Layers3, LockKeyhole, MessageSquareMore, Network, Play, ShieldCheck, Sparkles, Terminal, Users, X } from "lucide-react";
+import { ArrowRight, Blocks, Bot, Braces, Building2, Check, ChevronDown, CircleDot, Code2, Copy, Eye, EyeOff, GitBranch, Github, KeyRound, Layers3, LockKeyhole, Menu, MessageSquareMore, Network, Play, ShieldCheck, Sparkles, Terminal, Users, X } from "lucide-react";
 import { useAuthStore } from "../stores/auth";
 import { authFetch } from "../api/authFetch";
 import { EXPERIENCE_MODELS, type ExperienceModelId } from "../llm-providers";
@@ -383,7 +383,7 @@ export default function OpenHomePage() {
   const { isEnglish } = useLocale();
   const tx = (zh: string, en: string) => isEnglish ? en : zh;
   const navigate = useNavigate(), { login } = useAuthStore();
-  const [demoOpen, setDemoOpen] = useState(false), [demoPhase, setDemoPhase] = useState<"model" | "account">("model"), [loginState, setLoginState] = useState<"idle" | "admin" | "user">("idle"), [loginError, setLoginError] = useState(""), [copied, setCopied] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false), [demoPhase, setDemoPhase] = useState<"model" | "account">("model"), [loginState, setLoginState] = useState<"idle" | "admin" | "user">("idle"), [loginError, setLoginError] = useState(""), [copied, setCopied] = useState(false), [navOpen, setNavOpen] = useState(false);
   const [providerId, setProviderId] = useState<ExperienceModelId>("deepseek"), [apiKey, setApiKey] = useState(""), [showKey, setShowKey] = useState(false);
   const openDemo = (phase: "model" | "account") => { setDemoPhase(phase); setLoginError(""); setLoginState("idle"); setDemoOpen(true); };
   const enterDemo = async (kind: "admin" | "user") => {
@@ -411,12 +411,25 @@ export default function OpenHomePage() {
     }
   };
   const copyInstall = async () => { await navigator.clipboard.writeText("npm ci && npm run dev"); setCopied(true); window.setTimeout(() => setCopied(false), 1600); };
+  const closeNav = () => setNavOpen(false);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setNavOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navOpen]);
 
   return <div className="ox-page">
     <nav className="ox-nav" aria-label={tx("主导航", "Primary navigation")}>
-      <a className="ox-brand" href="#top"><i><Network size={18}/></i><b>open<span>XYOS</span></b><em>community</em></a>
-      <div className="ox-links"><a href="#capabilities">{tx("核心能力", "Capabilities")}</a><a href="#agent-flow">{tx("智能体流程", "Agent flow")}</a><a href="#architecture">{tx("架构", "Architecture")}</a><a href="#modules">{tx("模块", "Modules")}</a><a href="#contribute">{tx("共建", "Contribute")}</a></div>
-      <div className="ox-nav-actions"><LanguageToggle/><button onClick={() => openDemo("account")}>{tx("测试账号", "Demo account")}</button><a href={GITHUB_URL || "#source"} target={GITHUB_URL ? "_blank" : undefined} rel="noreferrer"><Github size={16}/> {GITHUB_URL ? "GitHub" : "源码"}</a></div>
+      <a className="ox-brand" href="#top" onClick={closeNav}><i><Network size={18}/></i><b>open<span>XYOS</span></b><em>community</em></a>
+      <div className="ox-links ox-desktop-links"><a href="#capabilities">{tx("核心能力", "Capabilities")}</a><a href="#agent-flow">{tx("智能体流程", "Agent flow")}</a><a href="#architecture">{tx("架构", "Architecture")}</a><a href="#modules">{tx("模块", "Modules")}</a><a href="#contribute">{tx("共建", "Contribute")}</a></div>
+      <div className="ox-nav-actions ox-desktop-actions"><LanguageToggle/><button onClick={() => openDemo("account")}>{tx("测试账号", "Demo account")}</button><a href={GITHUB_URL || "#source"} target={GITHUB_URL ? "_blank" : undefined} rel="noreferrer"><Github size={16}/> {GITHUB_URL ? "GitHub" : "源码"}</a></div>
+      <button className="ox-menu-toggle" type="button" onClick={() => setNavOpen(open => !open)} aria-expanded={navOpen} aria-controls="ox-mobile-nav" aria-label={navOpen ? tx("关闭导航", "Close navigation") : tx("打开导航", "Open navigation")}>{navOpen ? <X size={19}/> : <Menu size={20}/>}</button>
+      <div id="ox-mobile-nav" className={"ox-mobile-menu" + (navOpen ? " is-open" : "")} aria-hidden={!navOpen}>
+        <div className="ox-mobile-links"><a href="#capabilities" onClick={closeNav}>{tx("核心能力", "Capabilities")}</a><a href="#agent-flow" onClick={closeNav}>{tx("智能体流程", "Agent flow")}</a><a href="#architecture" onClick={closeNav}>{tx("架构", "Architecture")}</a><a href="#modules" onClick={closeNav}>{tx("模块", "Modules")}</a><a href="#contribute" onClick={closeNav}>{tx("共建", "Contribute")}</a></div>
+        <div className="ox-mobile-actions"><LanguageToggle/><button onClick={() => { closeNav(); openDemo("account"); }}>{tx("测试账号", "Demo account")}</button><a href={GITHUB_URL || "#source"} target={GITHUB_URL ? "_blank" : undefined} rel="noreferrer" onClick={closeNav}><Github size={16}/> {GITHUB_URL ? "GitHub" : "源码"}</a></div>
+      </div>
     </nav>
     <main>
       <section id="top" className="ox-hero">
