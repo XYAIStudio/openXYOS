@@ -1,8 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { useLocale } from "../i18n";
+import { EnglishUserAgreement } from "./LegalEnglishContent";
 
 export default function UserAgreementPage() {
   const navigate = useNavigate();
+  const { isEnglish } = useLocale();
+
+  if (isEnglish) return <EnglishUserAgreement onBack={() => navigate("/auth")} />;
 
   return (
     <div className="min-h-screen bg-bg">

@@ -1,8 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { useLocale } from "../i18n";
+import { EnglishPrivacyPolicy } from "./LegalEnglishContent";
 
 export default function PrivacyPolicyPage() {
   const navigate = useNavigate();
+  const { isEnglish } = useLocale();
+
+  if (isEnglish) return <EnglishPrivacyPolicy onBack={() => navigate("/auth")} />;
 
   return (
     <div className="min-h-screen bg-bg">
