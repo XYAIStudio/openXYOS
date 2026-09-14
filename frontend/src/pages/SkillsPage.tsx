@@ -4,8 +4,14 @@ import { authFetch } from "../api/authFetch";
 import { useLocale } from "../i18n";
 import { Search, Plus, Trash2, ToggleLeft, ToggleRight, Grid3X3, List, FolderTree, X, Download, Loader2, Package, Check, ChevronRight, ChevronDown, Puzzle, ExternalLink } from "lucide-react";
 
-const CATEGORY_EN: Record<string, string> = { "全部": "All", "电商与跨境": "Commerce & Cross-border", "营销与增长": "Marketing & Growth", "内容与创作": "Content & Creation", "开发与技术": "Development & Technology", "数据与金融": "Data & Finance", "法务与合规": "Legal & Compliance", "学术与教育": "Academia & Education", "沟通与协作": "Communication & Collaboration", "AI增强与知识": "AI & Knowledge", "生活与健康": "Lifestyle & Health", "其他": "Other", "未分类": "Uncategorized" };
+const CATEGORY_EN: Record<string, string> = { "全部": "All", "电商与跨境": "Commerce & Cross-border", "营销与增长": "Marketing & Growth", "内容与创作": "Content & Creation", "开发与技术": "Development & Technology", "数据与金融": "Data & Finance", "法务与合规": "Legal & Compliance", "学术与教育": "Academia & Education", "沟通与协作": "Communication & Collaboration", "AI增强与知识": "AI & Knowledge", "生活与健康": "Lifestyle & Health", "其他": "Other", "未分类": "Uncategorized", "工具": "Utilities", "法务合规": "Legal & Compliance", "协作": "Collaboration", "生产力": "Productivity" };
 const categoryLabel = (category: string, locale: string) => locale === "en" ? (CATEGORY_EN[category] || category) : category;
+const pluginPriceLabel = (price: string, locale: string) => {
+  if (locale !== "en") return price;
+  if (price === "免费") return "Free";
+  if (price === "免费额度") return "Free tier";
+  return price.replace(/\/月$/u, "/month");
+};
 
 function SkillCardGrid({ skill }: { skill: Skill }) {
   const { t, locale } = useLocale();
@@ -132,7 +138,7 @@ function DetailPanel() {
             <span className="text-xl">{s.icon || "📦"}</span> {s.name}
           </div>
           <div className="text-xs text-text-muted flex items-center gap-2 mt-1">
-            <span className="px-1.5 py-0.5 rounded bg-success/10 text-success">{s.category}</span>
+            <span className="px-1.5 py-0.5 rounded bg-success/10 text-success">{categoryLabel(s.category, locale)}</span>
             <span>v{s.version || "1.0.0"}</span>
             {s.author && <span>by {s.author}</span>}
           </div>
@@ -619,14 +625,14 @@ function PluginCenter() {
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-text truncate">{p.name}</h3>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] px-1.5 py-0.5 bg-bg rounded text-text-muted">{p.category}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-bg rounded text-text-muted">{categoryLabel(p.category, locale)}</span>
                     <span className="text-[10px] text-text-muted">{p.version}</span>
                   </div>
                 </div>
                 {isFree ? (
                   <span className="text-[10px] px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-medium">{t("免费", "Free")}</span>
                 ) : (
-                  <span className="text-[10px] px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium">{p.price}</span>
+                  <span className="text-[10px] px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium">{pluginPriceLabel(p.price, locale)}</span>
                 )}
               </div>
               <p className="text-xs text-text-muted leading-relaxed mb-3 line-clamp-2">{p.description}</p>
@@ -671,7 +677,7 @@ function PluginCenter() {
               <p className="text-sm text-text-muted mt-1">{payPlugin.description}</p>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
-              <p className="text-2xl font-bold text-amber-700">{payPlugin.price}</p>
+              <p className="text-2xl font-bold text-amber-700">{pluginPriceLabel(payPlugin.price, locale)}</p>
               <p className="text-xs text-amber-600 mt-1">{t("按月订阅 · 随时可取消", "Monthly subscription · cancel anytime")}</p>
             </div>
             <div className="text-xs text-text-muted mb-4 space-y-1">
