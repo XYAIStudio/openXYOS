@@ -367,7 +367,7 @@ export default function EmployeeDetailPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-text-muted">{t("姓名", "Name")}</span><span className="text-text font-medium">{employee.name}</span></div>
                   <div className="flex justify-between"><span className="text-text-muted">{t("岗位", "Role")}</span><span className="text-text">{employee.role || t("未设置", "Not set")}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">部门</span><span className="text-text">{department?.name || t("未分配", "Unassigned")}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{t("部门", "Department")}</span><span className="text-text">{department?.name || t("未分配", "Unassigned")}</span></div>
                   <div className="flex justify-between"><span className="text-text-muted">{t("类型", "Type")}</span><span className="text-text">{employee.employee_type === "ai" ? t("AI员工", "AI employee") : t("人类员工", "Human employee")}</span></div>
                   {employee.agent_type && <div className="flex justify-between"><span className="text-text-muted">{t("AI角色", "AI role")}</span><span className="text-text">{employee.agent_type}</span></div>}
                   {employee.pid && <div className="flex justify-between"><span className="text-text-muted">PID</span><span className="text-text font-mono">{employee.pid}</span></div>}
