@@ -151,12 +151,12 @@ agentStudioRoutes.post("/generate", (req: AuthRequest, res) => {
     };
     const description = [
       positioning,
-      `行业：${industry}`,
-      `核心能力：${capabilities.join("、")}`,
-      experience ? `行业经验与工作准则：${experience}` : "",
-      references.length ? `参考资料内容：${references.map(file => `【${file.original_name}】` + (file.extracted_text || "").slice(0, 6000)).join("\n")}` : "",
-      imaBinding ? `ima 知识库：已关联，运行前需完成可用性验证（${imaBinding.url}）` : "",
-      "治理边界：高风险结论必须提交人工复核，不执行外发、删除、支付或生产环境修改。",
+      agentError(req, `行业：${industry}`, `Industry: ${industry}`),
+      agentError(req, `核心能力：${capabilities.join("、")}`, `Core capabilities: ${capabilities.join(", ")}`),
+      experience ? agentError(req, `行业经验与工作准则：${experience}`, `Industry experience and operating guidance: ${experience}`) : "",
+      references.length ? agentError(req, `参考资料内容：${references.map(file => `【${file.original_name}】` + (file.extracted_text || "").slice(0, 6000)).join("\n")}`, `Reference materials: ${references.map(file => `[${file.original_name}]` + (file.extracted_text || "").slice(0, 6000)).join("\n")}`) : "",
+      imaBinding ? agentError(req, `ima 知识库：已关联，运行前需完成可用性验证（${imaBinding.url}）`, `ima knowledge base: linked; availability must be verified before runtime (${imaBinding.url})`) : "",
+      agentError(req, "治理边界：高风险结论必须提交人工复核，不执行外发、删除、支付或生产环境修改。", "Governance boundaries: high-risk conclusions require human review; external sending, deletion, payment, and production changes are disabled."),
     ].filter(Boolean).join("\n");
 
     const inserted = dbRun(
@@ -174,7 +174,7 @@ agentStudioRoutes.post("/generate", (req: AuthRequest, res) => {
         status: "available",
         market: "talent",
         ima_status: imaBinding?.status || "not_linked",
-        next_step: "在人机资源的人才市场中招募，随后在备选员工中补充岗位职责和所属部门。",
+        next_step: agentError(req, "在人机资源的人才市场中招募，随后在备选员工中补充岗位职责和所属部门。", "Recruit this agent from the Human–AI resources talent market, then add its role responsibilities and department in the reserve employee pool."),
       },
     });
   } catch (error: any) {
