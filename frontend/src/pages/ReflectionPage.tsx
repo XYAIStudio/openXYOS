@@ -22,17 +22,17 @@ const REFLECTION_TYPE_COLORS: Record<string, string> = {
 
 /** 系统部署铁律 — 从反思中提炼的不可违背规则 */
 const DEPLOYMENT_LAWS = [
-  { id: 1, rule: "TypeScript 编译检查：部署前必须 npx tsc --noEmit", detail: "比 read_lints 更严，能抓 const 死区、类型不匹配、缺失导入" },
-  { id: 2, rule: "re-read 上下文：每次 replace_in_file 后重读改动位置前后 10 行", detail: "确认变量声明顺序、导入完整性、引用存在性" },
-  { id: 3, rule: "分批验证：改 5+ 文件时按模块分批 build", detail: "不在全部改完后再 build，问题早发现早解决" },
-  { id: 4, rule: "本地冒烟：关键页面改完后 vite 预览确认不白屏", detail: "员工详情、员工列表、聊天页至少点一遍" },
-  { id: 5, rule: "部署后验证文件状态：确认 dist/avatars/ 文件数 = 53", detail: "plink 查看文件清单，清理残留源文件" },
-  { id: 6, rule: "部署后验证 PM2 日志：确认无启动错误", detail: "pm2 logs --lines 20 --nostream，排查 Cannot find module / ReferenceError" },
-  { id: 7, rule: "浏览器最终验证：关键页面逐个确认", detail: "员工详情可打开、头像正常显示、权限控制正确" },
+  { id: 1, rule: ["TypeScript 编译检查：部署前必须 npx tsc --noEmit", "TypeScript compilation: run npx tsc --noEmit before deployment"], detail: ["比 read_lints 更严，能抓 const 死区、类型不匹配、缺失导入", "Stricter than read_lints; catches temporal-dead-zone errors, type mismatches, and missing imports"] },
+  { id: 2, rule: ["re-read 上下文：每次 replace_in_file 后重读改动位置前后 10 行", "Re-read context: inspect 10 lines around every replace_in_file edit"], detail: ["确认变量声明顺序、导入完整性、引用存在性", "Confirm declaration order, complete imports, and valid references"] },
+  { id: 3, rule: ["分批验证：改 5+ 文件时按模块分批 build", "Validate in batches: build by module when changing 5+ files"], detail: ["不在全部改完后再 build，问题早发现早解决", "Do not wait for every edit; find and fix issues early"] },
+  { id: 4, rule: ["本地冒烟：关键页面改完后 vite 预览确认不白屏", "Local smoke test: preview key pages in Vite after edits"], detail: ["员工详情、员工列表、聊天页至少点一遍", "Open employee detail, people list, and chat at least once"] },
+  { id: 5, rule: ["部署后验证文件状态：确认 dist/avatars/ 文件数 = 53", "After deployment, verify expected file state"], detail: ["plink 查看文件清单，清理残留源文件", "Review the file list and remove residual source artifacts"] },
+  { id: 6, rule: ["部署后验证 PM2 日志：确认无启动错误", "After deployment, verify service logs have no startup errors"], detail: ["pm2 logs --lines 20 --nostream，排查 Cannot find module / ReferenceError", "Inspect recent logs for Cannot find module or ReferenceError failures"] },
+  { id: 7, rule: ["浏览器最终验证：关键页面逐个确认", "Final browser validation: confirm each critical page"], detail: ["员工详情可打开、头像正常显示、权限控制正确", "Verify employee details open, avatars render, and permissions are correct"] },
 ] as const;
 
 export default function ReflectionPage() {
-  const { t } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [reflections, setReflections] = useState<Reflection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLaws, setShowLaws] = useState(true);
@@ -113,8 +113,8 @@ export default function ReflectionPage() {
               <div key={law.id} className="flex items-start gap-2 px-3 py-1.5 bg-surface/20 rounded text-xs">
                 <CheckCircle2 size={14} className="text-success shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-medium text-text">{law.rule}</span>
-                  <span className="text-text-muted ml-2">{law.detail}</span>
+                  <span className="font-medium text-text">{isEnglish ? law.rule[1] : law.rule[0]}</span>
+                  <span className="text-text-muted ml-2">{isEnglish ? law.detail[1] : law.detail[0]}</span>
                 </div>
               </div>
             ))}

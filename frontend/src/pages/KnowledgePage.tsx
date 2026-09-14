@@ -222,7 +222,7 @@ export default function KnowledgePage() {
         <div className="flex-1 overflow-auto p-4">
           {loading?<div className="text-center py-16 text-text-muted text-sm">{t("加载中...", "Loading...")}</div>
           :fNotes.length===0?(
-            <div className="text-center py-16"><FileText size={48} className="text-text-muted mx-auto mb-3 opacity-50"/><p className="text-text-muted text-sm">{t("暂无笔记", "No notes yet")}</p><button onClick={()=>{setShowForm(true)}} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-medium">新建笔记</button></div>
+            <div className="text-center py-16"><FileText size={48} className="text-text-muted mx-auto mb-3 opacity-50"/><p className="text-text-muted text-sm">{t("暂无笔记", "No notes yet")}</p><button onClick={()=>{setShowForm(true)}} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-medium">{t("新建笔记", "New note")}</button></div>
           ):(
             <div className="space-y-2">
               {fNotes.map(n=>(

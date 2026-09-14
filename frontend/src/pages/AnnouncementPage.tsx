@@ -327,27 +327,27 @@ export default function AnnouncementPage() {
                   <label className="block text-xs text-text-muted mb-1">{t("类型", "Type")}</label>
                   <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
                     className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none">
-                    <option value="notice">通知</option>
-                    <option value="policy">制度</option>
-                    <option value="news">新闻</option>
-                    <option value="emergency">紧急</option>
+                    <option value="notice">{t("通知", "Notice")}</option>
+                    <option value="policy">{t("制度", "Policy")}</option>
+                    <option value="news">{t("新闻", "News")}</option>
+                    <option value="emergency">{t("紧急", "Emergency")}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-text-muted mb-1">{t("优先级", "Priority")}</label>
                   <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}
                     className="w-full px-3 py-2 text-sm rounded border border-border bg-bg focus:outline-none">
-                    <option value="low">低</option>
-                    <option value="normal">普通</option>
-                    <option value="important">重要</option>
-                    <option value="urgent">紧急</option>
+                    <option value="low">{t("低", "Low")}</option>
+                    <option value="normal">{t("普通", "Normal")}</option>
+                    <option value="important">{t("重要", "Important")}</option>
+                    <option value="urgent">{t("紧急", "Urgent")}</option>
                   </select>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.is_pinned} onChange={e => setForm({ ...form, is_pinned: e.target.checked })}
-                    className="rounded" /> 置顶
+                    className="rounded" /> {t("置顶", "Pin")}
                 </label>
                 <div className="flex items-center gap-2 flex-1">
                   <label className="text-xs text-text-muted shrink-0">{t("有效期至", "Expires")}</label>
