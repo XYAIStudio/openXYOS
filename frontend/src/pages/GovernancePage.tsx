@@ -12,12 +12,15 @@ const TABS = [
 ];
 
 const ROLE_LEVELS = [
-  { level: 1, name: "L1 决策层", desc: "董事长/CEO" },
-  { level: 2, name: "L2 经营层", desc: "VP/高管" },
-  { level: 3, name: "L3 管理层", desc: "总监/经理" },
-  { level: 4, name: "L4 执行层", desc: "主管/组长" },
-  { level: 5, name: "L5 基础层", desc: "普通员工/AI" },
+  { level: 1, name: "L1 决策层", desc: "董事长/CEO", enName: "L1 Decision", enDesc: "Chair / CEO" },
+  { level: 2, name: "L2 经营层", desc: "VP/高管", enName: "L2 Operations", enDesc: "VP / Executive" },
+  { level: 3, name: "L3 管理层", desc: "总监/经理", enName: "L3 Management", enDesc: "Director / Manager" },
+  { level: 4, name: "L4 执行层", desc: "主管/组长", enName: "L4 Execution", enDesc: "Supervisor / Team lead" },
+  { level: 5, name: "L5 基础层", desc: "普通员工/AI", enName: "L5 Foundation", enDesc: "Staff / AI" },
 ];
+
+const roleName = (role: typeof ROLE_LEVELS[number], isEnglish: boolean) => isEnglish ? role.enName : role.name;
+const roleDescription = (role: typeof ROLE_LEVELS[number], isEnglish: boolean) => isEnglish ? role.enDesc : role.desc;
 
 const PERMISSION_TYPES = ["command", "view", "approve", "dispatch", "report", "create", "update", "delete", "assign"];
 
@@ -189,7 +192,7 @@ export default function GovernancePage() {
 
 // 概览Tab
 function OverviewTab({ stats }: { stats: any }) {
-  const { t } = useLocale();
+  const { t, isEnglish } = useLocale();
   const { overview, actionStats, levelStats, recentTrend } = stats;
   const maxTrend = Math.max(...recentTrend.map((t: any) => t.total), 1);
 
@@ -266,11 +269,11 @@ function OverviewTab({ stats }: { stats: any }) {
                 const rate = item.count > 0 ? Math.round((item.allowed / item.count) * 100) : 0;
                 return (
                   <div key={item.action} className="flex items-center gap-2">
-                    <div className="w-20 text-xs text-text truncate">{item.action || "未分类"}</div>
+                    <div className="w-20 text-xs text-text truncate">{item.action || t("未分类", "Unclassified")}</div>
                     <div className="flex-1 h-4 bg-bg rounded-full overflow-hidden">
                       <div className="h-full bg-green-500 rounded-full" style={{ width: `${rate}%` }} />
                     </div>
-                    <span className="text-xs text-text-muted w-16 text-right">{item.count}次 ({rate}%)</span>
+                    <span className="text-xs text-text-muted w-16 text-right">{isEnglish ? `${item.count} events (${rate}%)` : `${item.count}次 (${rate}%)`}</span>
                   </div>
                 );
               })}
@@ -289,7 +292,8 @@ function OverviewTab({ stats }: { stats: any }) {
             <div className="space-y-2">
               {levelStats.map((item: any) => {
                 const rate = item.count > 0 ? Math.round((item.allowed / item.count) * 100) : 0;
-                const levelName = ROLE_LEVELS.find(r => r.level === item.actor_level)?.name || `L${item.actor_level}`;
+                const role = ROLE_LEVELS.find(r => r.level === item.actor_level);
+                const levelName = role ? roleName(role, isEnglish) : `L${item.actor_level}`;
                 return (
                   <div key={item.actor_level} className="flex items-center gap-2">
                     <div className="w-20 text-xs text-text truncate">{levelName}</div>
@@ -336,7 +340,7 @@ function OverviewTab({ stats }: { stats: any }) {
 
 // 权限矩阵Tab
 function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => void }) {
-  const { t, locale } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [editData, setEditData] = useState<any[]>([]);
 
   useEffect(() => { setEditData([...data]); }, [data]);
@@ -374,8 +378,8 @@ function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => v
             {ROLE_LEVELS.map((role) => (
               <tr key={role.level} className="border-b border-border/50 hover:bg-bg">
                 <td className="py-3 px-4">
-                  <div className="font-medium text-text">{role.name}</div>
-                  <div className="text-xs text-text-muted">{role.desc}</div>
+                  <div className="font-medium text-text">{roleName(role, isEnglish)}</div>
+                  <div className="text-xs text-text-muted">{roleDescription(role, isEnglish)}</div>
                 </td>
                 {PERMISSION_TYPES.map((p) => (
                   <td key={p} className="text-center py-3 px-2">
@@ -396,7 +400,7 @@ function PermissionsTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => v
 
 // 通信规则Tab
 function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => void }) {
-  const { t, locale } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [editData, setEditData] = useState<any[]>([]);
 
   useEffect(() => { setEditData([...data]); }, [data]);
@@ -434,14 +438,14 @@ function CommRulesTab({ data, onSave }: { data: any[]; onSave: (r: any[]) => voi
                 <tr className="border-b border-border">
                   <th className="text-left py-2 px-4 text-text-muted font-medium text-xs">{t("发送方 ↓ → 接收方 →", "Sender ↓ → Receiver →")}</th>
                   {ROLE_LEVELS.map((r) => (
-                    <th key={r.level} className="text-center py-2 px-2 text-text-muted font-medium text-xs">{r.name}</th>
+                    <th key={r.level} className="text-center py-2 px-2 text-text-muted font-medium text-xs">{roleName(r, isEnglish)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {ROLE_LEVELS.map((sender) => (
                   <tr key={sender.level} className="border-b border-border/50">
-                    <td className="py-2 px-4 text-xs font-medium text-text">{sender.name}</td>
+                    <td className="py-2 px-4 text-xs font-medium text-text">{roleName(sender, isEnglish)}</td>
                     {ROLE_LEVELS.map((receiver) => {
                       const rule = getRule(sender.level, receiver.level, type);
                       const allowed = rule ? rule.is_allowed : true;
