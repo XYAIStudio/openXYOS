@@ -28,11 +28,10 @@ const TYPE_MAP: Record<string, { label: string; icon: any; color: string }> = {
   emergency: { label: "紧急", icon: AlertTriangle, color: "bg-red-100 text-red-700 border-red-200" },
 };
 
-const PRIORITY_MAP: Record<string, string> = {
-  low: "低",
-  normal: "普通",
-  important: "重要",
-  urgent: "紧急",
+const TYPE_EN: Record<string, string> = { notice: "Notice", policy: "Policy", news: "News", emergency: "Emergency" };
+const typeLabel = (type: string, locale: string) => {
+  const meta = TYPE_MAP[type] || TYPE_MAP.notice;
+  return locale === "en" ? (TYPE_EN[type] || TYPE_EN.notice) : meta.label;
 };
 
 export default function AnnouncementPage() {
@@ -221,7 +220,7 @@ export default function AnnouncementPage() {
                 )}
                 <div className="flex items-start gap-3">
                   <div className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium border ${typeMeta.color}`}>
-                    {t(typeMeta.label, ({"通知":"Notice", "制度":"Policy", "新闻":"News", "紧急":"Emergency"} as Record<string,string>)[typeMeta.label] || typeMeta.label)}
+                    {typeLabel(a.type, locale)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -281,7 +280,7 @@ export default function AnnouncementPage() {
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className={`px-2 py-0.5 rounded text-xs font-medium border ${(TYPE_MAP[detail.type] || TYPE_MAP.notice).color}`}>
-                  {(TYPE_MAP[detail.type] || TYPE_MAP.notice).label}
+                  {typeLabel(detail.type, locale)}
                 </div>
                 {detail.priority === "urgent" && <span className="text-xs text-red-500 font-bold">{t("紧急", "Urgent")}</span>}
               </div>
