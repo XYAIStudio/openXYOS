@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Avatar from "./Avatar";
+import { useLocale } from "../i18n";
 
 export interface MentionMember {
   id: number;
@@ -28,6 +29,8 @@ export default function MentionInput({
   disabled = false,
   members,
 }: MentionInputProps) {
+  const { t, isEnglish } = useLocale();
+  const allMentionName = isEnglish ? "all" : "全体成员";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
@@ -117,11 +120,11 @@ export default function MentionInput({
   const selectCurrentMention = useCallback(() => {
     if (mentionIdx === -1) {
       // @全体成员
-      insertMention({ id: -1, name: "全体成员" } as MentionMember);
+      insertMention({ id: -1, name: allMentionName } as MentionMember);
     } else if (computedFiltered.length > 0 && mentionIdx < computedFiltered.length) {
       insertMention(computedFiltered[mentionIdx]);
     }
-  }, [computedFiltered, mentionIdx, insertMention]);
+  }, [computedFiltered, mentionIdx, insertMention, allMentionName]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentions) {
@@ -244,7 +247,7 @@ export default function MentionInput({
             type="button"
             onMouseDown={(e) => {
               e.preventDefault();
-              insertMention({ id: -1, name: "全体成员" } as MentionMember);
+              insertMention({ id: -1, name: allMentionName } as MentionMember);
             }}
             onMouseEnter={() => setMentionIdx(-1)}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
@@ -256,9 +259,9 @@ export default function MentionInput({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-orange-600 truncate">@全体成员</span>
+                <span className="text-sm font-bold text-orange-600 truncate">@{allMentionName}</span>
               </div>
-              <p className="text-[10px] text-orange-400 truncate">通知所有群成员</p>
+              <p className="text-[10px] text-orange-400 truncate">{t("通知所有群成员", "Notify all group members")}</p>
             </div>
           </button>
           {/* 分隔线 */}

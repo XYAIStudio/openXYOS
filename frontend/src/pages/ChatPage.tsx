@@ -42,7 +42,7 @@ const QUICK_REACTIONS = ["👍", "❤️", "😊", "🎉", "👏", "🤔"];
 
 export default function ChatPage() {
   const { user } = useAuthStore();
-  const { t } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [chats, setChats] = useState<Chat[]>([]);
   const [active, setActive] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -334,7 +334,7 @@ export default function ChatPage() {
     setMessages(prev => [...prev, tempMsg]);
     try {
       // 检测 @全体成员 前缀，自动路由到 /at-all 端点
-      const isAtAll = text.startsWith("@全体成员");
+      const isAtAll = text.startsWith("@全体成员") || text.toLowerCase().startsWith("@all");
       const endpoint = isAtAll
         ? `/api/chats/${active.id}/at-all`
         : `/api/chats/${active.id}/messages`;
@@ -473,7 +473,7 @@ export default function ChatPage() {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => alert("已复制到剪贴板"));
+    navigator.clipboard.writeText(text).then(() => alert(t("已复制到剪贴板", "Copied to clipboard")));
   };
 
   const exportMinutes = async (messageId: number, format: string) => {
@@ -511,7 +511,7 @@ export default function ChatPage() {
     setImportingKnowledge(null);
     setShowImportModal(null);
     setImportKnowledgeTitle("");
-    if (d.success) alert(`已导入知识库：${d.data.title}`);
+    if (d.success) alert(t("已导入知识库：", "Imported into knowledge base: ") + d.data.title);
   };
 
   // Shared @mention highlighting helper
@@ -522,7 +522,7 @@ export default function ChatPage() {
       if (part.startsWith("@") && part.length > 1) {
         const name = part.slice(1);
         // @全体成员 特殊高亮：白色文字+金色徽章，绿色/蓝色底色均清晰
-        if (name === "全体成员") {
+        if (name === "全体成员" || (isEnglish && name.toLowerCase() === "all")) {
           return (
             <span
               key={i}
