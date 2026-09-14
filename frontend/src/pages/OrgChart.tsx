@@ -1437,7 +1437,7 @@ function AddDeptModal({
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-xl"
           >
-            取消
+            {t("取消", "Cancel")}
           </button>
           <button
             onClick={save}
@@ -1570,7 +1570,7 @@ function AddEmpModal({
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-xl"
           >
-            取消
+            {t("取消", "Cancel")}
           </button>
           <button
             onClick={save}
