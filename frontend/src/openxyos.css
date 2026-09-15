@@ -51,3 +51,8 @@
   .ox-mobile-menu.is-open{padding:12px 16px 16px}
   .ox-mobile-links{grid-template-columns:1fr}
 }
+
+/* English public-site cookie consent: persistent, dismissible, and viewport-safe. */
+.ox-cookie-consent{position:fixed;z-index:90;left:24px;bottom:24px;width:min(370px,calc(100vw - 48px));padding:17px;border:1px solid rgba(126,188,168,.28);border-radius:10px;color:#d9ece5;background:rgba(7,18,15,.96);box-shadow:0 18px 54px rgba(0,0,0,.46);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.ox-cookie-consent p{margin:0;color:#a8bdb5;font-size:12px;line-height:1.55}.ox-cookie-consent>a{display:inline-block;margin-top:9px;color:#7bdcb6;font-size:12px;text-underline-offset:3px}.ox-cookie-consent>div{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.ox-cookie-consent button{min-height:33px;padding:0 13px;border:1px solid rgba(150,194,180,.25);border-radius:5px;font-size:12px;font-weight:650;cursor:pointer}.ox-cookie-consent .reject{color:#d8e5e0;background:transparent}.ox-cookie-consent .accept{color:#03110c;border-color:#31e6a1;background:#31e6a1}.ox-cookie-consent button:hover{filter:brightness(1.08)}.ox-cookie-consent button:focus-visible,.ox-cookie-consent>a:focus-visible{outline:2px solid #55c7ff;outline-offset:3px}
+@media(max-width:620px){.ox-cookie-consent{left:16px;bottom:16px;width:calc(100vw - 32px);padding:15px}.ox-cookie-consent>div{justify-content:stretch}.ox-cookie-consent button{flex:1}}

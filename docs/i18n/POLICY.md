@@ -20,9 +20,24 @@ and core task flows have been reviewed.
   business logic on translated text.
 - API clients send `Accept-Language`; backend decisions use stable error
   codes and may return a localized message.
+- System-owned catalog metadata (module names, descriptions, fixed roles and
+  state labels) is localized at the API boundary as well as in the UI. This
+  keeps API consumers, CLI integrations, and the workspace consistent.
 - User-created content is not automatically translated when the UI changes
   language. Translation is an explicit user action or a separate localized
   field.
+
+## Data-language boundary
+
+Locale changes presentation; they do not rewrite tenant data. In particular,
+tenant names, organization nodes, employee names, announcements, tasks,
+knowledge records, and a tenant administrator's custom module name retain the
+language in which they were authored. This prevents a language toggle from
+silently changing business records or overwriting a community member's work.
+
+For a public English demonstration, maintain a separately seeded English
+sample tenant rather than translating an existing tenant in place. Any sample
+profile must be opt-in and must not be used to modify a production tenant.
 
 ## Language precedence
 
@@ -52,6 +67,11 @@ and tested.
 - [ ] Dates, numbers, and percentages use `Intl`, not fixed Chinese formats.
 - [ ] Error handling uses an error code or localized backend message, never a
       comparison against Chinese prose.
+- [ ] A changed authenticated endpoint is checked with both `Accept-Language:
+      en` and `Accept-Language: zh-CN`, including an expired-session response
+      where authentication is involved.
+- [ ] System catalog metadata returned by the API is localized; custom tenant
+      labels and user-authored data remain unchanged.
 - [ ] User content, secrets, and proprietary material were not added to a
       translation resource or public documentation.
 
@@ -61,3 +81,8 @@ Before enabling a new locale in the product, run the typecheck and build, then
 verify sign-in, navigation, workspace, module loading, one create/edit flow,
 one permission failure, one API failure, and language persistence after a full
 refresh in both Chinese and English.
+
+For a release that changes authentication or workspace configuration, also
+verify an expired access token and the localized module-catalog API response
+against the deployed HTTPS site. Record the tested commit and endpoint in the
+release evidence.

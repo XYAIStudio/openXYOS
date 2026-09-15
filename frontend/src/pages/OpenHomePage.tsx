@@ -10,6 +10,7 @@ import AgentJourneyDemo from "../components/AgentJourneyDemo";
 import { LanguageToggle, useLocale } from "../i18n";
 
 const GITHUB_URL = (import.meta.env.VITE_GITHUB_URL as string | undefined)?.trim() || "https://github.com/XYAIStudio/openXYOS";
+const COOKIE_CONSENT_KEY = "openxyos.cookie-consent.v1";
 const CAPABILITIES = [
   { icon: Building2, title: ["集团多层级组织", "Multi-level organizations"], text: ["集团、公司、部门、岗位与人员关系统一建模，支持复杂组织的分层协作。", "Model groups, companies, departments, roles, and people in one hierarchy for complex collaboration."] },
   { icon: Layers3, title: ["多租户与多模块", "Multi-tenant, modular"], text: ["租户数据隔离，管理员可按租户启停模块并编辑模块显示名称。", "Isolate tenant data and let administrators enable modules and rename them per tenant."] },
@@ -385,6 +386,10 @@ export default function OpenHomePage() {
   const navigate = useNavigate(), { login } = useAuthStore();
   const [demoOpen, setDemoOpen] = useState(false), [demoPhase, setDemoPhase] = useState<"model" | "account">("model"), [loginState, setLoginState] = useState<"idle" | "admin" | "user">("idle"), [loginError, setLoginError] = useState(""), [copied, setCopied] = useState(false), [navOpen, setNavOpen] = useState(false);
   const [providerId, setProviderId] = useState<ExperienceModelId>("deepseek"), [apiKey, setApiKey] = useState(""), [showKey, setShowKey] = useState(false);
+  const [cookieConsent, setCookieConsent] = useState<"accepted" | "rejected" | null>(() => {
+    const saved = localStorage.getItem(COOKIE_CONSENT_KEY);
+    return saved === "accepted" || saved === "rejected" ? saved : null;
+  });
   const openDemo = (phase: "model" | "account") => { setDemoPhase(phase); setLoginError(""); setLoginState("idle"); setDemoOpen(true); };
   const enterDemo = async (kind: "admin" | "user") => {
     setLoginState(kind); setLoginError("");
@@ -412,6 +417,10 @@ export default function OpenHomePage() {
   };
   const copyInstall = async () => { await navigator.clipboard.writeText("npm ci && npm run dev"); setCopied(true); window.setTimeout(() => setCopied(false), 1600); };
   const closeNav = () => setNavOpen(false);
+  const chooseCookieConsent = (choice: "accepted" | "rejected") => {
+    localStorage.setItem(COOKIE_CONSENT_KEY, choice);
+    setCookieConsent(choice);
+  };
 
   useEffect(() => {
     if (!navOpen) return;
@@ -458,6 +467,11 @@ export default function OpenHomePage() {
       <section id="contribute" className="ox-contribute"><div><Users size={31}/></div><small>BUILD WITH US</small><h2>{tx("不只使用系统，一起定义人机组织的未来", "Do more than use the system—define the future of human–AI organizations")}</h2><p>{tx("欢迎从组织模型、智能体协作、治理策略、模块生态和工程质量开始贡献。", "Contribute through organization models, agent collaboration, governance policy, module ecosystems, and engineering quality.")}</p><div className="ox-actions">{GITHUB_URL ? <a className="ox-primary" href={GITHUB_URL + "/issues"} target="_blank" rel="noreferrer"><Github size={18}/> {tx("查看 Issues", "View issues")}</a> : <a className="ox-primary" href="#source"><Code2 size={18}/> {tx("阅读源码边界", "Read source boundary")}</a>}<button className="ox-secondary" onClick={() => openDemo("model")}>{tx("进入系统", "Enter system")} <ArrowRight size={16}/></button></div></section>
     </main>
     <footer className="ox-footer"><span className="ox-brand"><i><Network size={16}/></i><b>open<span>XYOS</span></b></span><p>Open-source operating system for human–agent organizations.</p><small>Apache License 2.0 · Built in the open</small></footer>
+    {isEnglish && !cookieConsent && <aside className="ox-cookie-consent" role="dialog" aria-label="Cookie preferences" aria-describedby="cookie-consent-description">
+      <p id="cookie-consent-description">We use essential cookies to keep openXYOS secure and remember your preferences. You can accept or reject optional cookies.</p>
+      <a href="/privacy-policy?lang=en">Cookie policy</a>
+      <div><button type="button" className="reject" onClick={() => chooseCookieConsent("rejected")}>Reject</button><button type="button" className="accept" onClick={() => chooseCookieConsent("accepted")}>Accept</button></div>
+    </aside>}
     {demoOpen && <div className="ox-overlay" onMouseDown={() => setDemoOpen(false)}><div className={`ox-dialog ${demoPhase === "model" ? "model-dialog" : ""}`} role="dialog" aria-modal="true" aria-labelledby="demo-title" onMouseDown={e => e.stopPropagation()}><button className="close" onClick={() => setDemoOpen(false)} aria-label={tx("关闭", "Close")}><X size={18}/></button>{demoPhase === "model" ? <><i className="icon"><KeyRound size={22}/></i><h2 id="demo-title">{tx("接入大模型，体验完整智能能力", "Connect a model to experience full intelligence")}</h2><p>{tx("选择你已有 API Key 的模型服务。密钥保存到当前本地演示租户，页面不会回显原文；之后可在“系统设置 → AI 大模型”中更换。", "Choose a model service for which you have an API key. The key is stored only in the current demo tenant and is never shown back in plain text; change it later in System Settings → AI Models.")}</p><div className="model-presets">{EXPERIENCE_MODELS.map(model => <button key={model.id} className={providerId === model.id ? "selected" : ""} onClick={() => setProviderId(model.id)}><b>{model.name}</b><span>{model.provider}</span><small>{isEnglish ? model.hintEn : model.hint}</small></button>)}</div><label className="api-key-field"><span>API Key</span><div><KeyRound size={15}/><input type={showKey ? "text" : "password"} value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={tx("输入所选模型服务商的 API Key", "Enter the selected provider API key")} autoComplete="off" spellCheck={false}/><button onClick={() => setShowKey(value => !value)} aria-label={showKey ? tx("隐藏 API Key", "Hide API key") : tx("显示 API Key", "Show API key")}>{showKey ? <EyeOff size={16}/> : <Eye size={16}/>}</button></div></label><div className="key-notice"><ShieldCheck size={15}/><span>{tx("Key 仅发送到当前 openXYOS 后端，不写入浏览器日志，也不会再次明文返回。", "The key is sent only to the current openXYOS backend, never logged in the browser, and never returned in plain text.")}</span></div>{loginState !== "idle" && <p className="feedback">{tx("正在登录演示租户并保存模型配置…", "Signing in to the demo tenant and saving model configuration…")}</p>}{loginError && <p className="error">{loginError}</p>}<div className="model-actions"><button className="ox-primary" onClick={() => void saveModelAndEnter()} disabled={loginState !== "idle"}>{tx("保存并进入智能体验", "Save and enter intelligent experience")} <ArrowRight size={16}/></button><button className="ox-secondary" onClick={() => { setDemoPhase("account"); setLoginError(""); }}>{tx("暂不配置，只体验基础功能", "Skip for now and explore core functions")}</button></div></> : <><i className="icon"><LockKeyhole size={22}/></i><h2 id="demo-title">{tx("选择测试视角", "Choose a demo perspective")}</h2><p>{tx("使用本地演示租户进入真实系统。管理员可体验模块开关和名称编辑，普通员工只看到已授权能力。", "Enter the live system with the local demo tenant. Administrators can manage modules and labels; users see only authorized capabilities.")}</p><button className="account" onClick={() => void enterDemo("admin")} disabled={loginState !== "idle"}><span><b>{tx("管理员", "Administrator")}</b><small>demo@demo.com · {tx("密码", "password")} openxyos-demo-2026</small></span><ArrowRight size={17}/></button><button className="account" onClick={() => void enterDemo("user")} disabled={loginState !== "idle"}><span><b>{tx("普通员工", "Employee")}</b><small>user@demo.com · {tx("密码", "password")} openxyos-demo-2026</small></span><ArrowRight size={17}/></button>{loginState !== "idle" && <p className="feedback">{tx("正在连接演示环境…", "Connecting to the demo environment…")}</p>}{loginError && <p className="error">{loginError}</p>}<button className="manual" onClick={() => navigate("/auth")}>{tx("使用其他账号登录", "Sign in with another account")}</button></>}</div></div>}
   </div>;
 }
