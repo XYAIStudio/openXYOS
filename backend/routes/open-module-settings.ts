@@ -2,9 +2,12 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest, requireAdmin } from "../middleware";
 import { isLockedModule, isOpenXyosModuleKey, OPENXYOS_MODULES } from "../open-module-catalog";
+import { localizedError } from "../utils/locale";
 
 export const openModuleSettingsRoutes = Router();
 openModuleSettingsRoutes.use(authenticate);
+
+const openModuleSettingsError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 let schemaReady = false;
 function ensureSchema() {
@@ -32,36 +35,36 @@ function readModules(tenantId: number) {
 openModuleSettingsRoutes.get("/", (req: AuthRequest, res) => {
   try {
     const tenantId = resolveTenantId(req, req.query.tenant_id);
-    if (!tenantId) return res.status(403).json({ success:false, error:"无权查看该租户的模块设置" });
+    if (!tenantId) return res.status(403).json({ success:false, error:openModuleSettingsError(req, "无权查看该租户的模块设置", "You do not have permission to view this tenant's module settings") });
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
-    if (!tenant) return res.status(404).json({ success:false, error:"租户不存在" });
+    if (!tenant) return res.status(404).json({ success:false, error:openModuleSettingsError(req, "租户不存在", "Tenant not found") });
     res.json({ success:true, data:{ tenant, modules:readModules(tenantId) } });
-  } catch (error:any) { res.status(500).json({ success:false, error:error.message }); }
+  } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
 });
 
 openModuleSettingsRoutes.put("/", requireAdmin, (req: AuthRequest, res) => {
   try {
     const tenantId = resolveTenantId(req, req.body?.tenant_id);
-    if (!tenantId) return res.status(403).json({ success:false, error:"无权修改该租户的模块设置" });
+    if (!tenantId) return res.status(403).json({ success:false, error:openModuleSettingsError(req, "无权修改该租户的模块设置", "You do not have permission to change this tenant's module settings") });
     const updates = req.body?.updates;
     const labels = req.body?.labels;
     if ((!updates || typeof updates !== "object" || Array.isArray(updates)) && (!labels || typeof labels !== "object" || Array.isArray(labels))) {
-      return res.status(400).json({ success:false, error:"请提交 updates 或 labels" });
+      return res.status(400).json({ success:false, error:openModuleSettingsError(req, "请提交 updates 或 labels", "Provide updates or labels") });
     }
     ensureSchema();
     for (const [key,value] of Object.entries(updates || {})) {
-      if (!isOpenXyosModuleKey(key)) return res.status(400).json({ success:false, error:`未知模块: ${key}` });
-      if (isLockedModule(key)) return res.status(400).json({ success:false, error:`${key} 是基础模块，不能关闭` });
-      if (typeof value !== "boolean") return res.status(400).json({ success:false, error:`${key} 的开关值必须是布尔值` });
+      if (!isOpenXyosModuleKey(key)) return res.status(400).json({ success:false, error:openModuleSettingsError(req, `未知模块: ${key}`, `Unknown module: ${key}`) });
+      if (isLockedModule(key)) return res.status(400).json({ success:false, error:openModuleSettingsError(req, `${key} 是基础模块，不能关闭`, `${key} is a foundation module and cannot be disabled`) });
+      if (typeof value !== "boolean") return res.status(400).json({ success:false, error:openModuleSettingsError(req, `${key} 的开关值必须是布尔值`, `The toggle value for ${key} must be boolean`) });
       dbRun(`INSERT INTO tenant_module_settings (tenant_id,module_key,enabled,updated_by,updated_at)
         VALUES (?,?,?,?,CURRENT_TIMESTAMP)
         ON CONFLICT(tenant_id,module_key) DO UPDATE SET enabled=excluded.enabled,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP`,
         [tenantId,key,value?1:0,req.user!.id]);
     }
     for (const [key,value] of Object.entries(labels || {})) {
-      if (!isOpenXyosModuleKey(key)) return res.status(400).json({ success:false, error:`未知模块: ${key}` });
+      if (!isOpenXyosModuleKey(key)) return res.status(400).json({ success:false, error:openModuleSettingsError(req, `未知模块: ${key}`, `Unknown module: ${key}`) });
       if (typeof value !== "string" || value.trim().length < 2 || value.trim().length > 20) {
-        return res.status(400).json({ success:false, error:`${key} 的显示名称须为 2-20 个字符` });
+        return res.status(400).json({ success:false, error:openModuleSettingsError(req, `${key} 的显示名称须为 2-20 个字符`, `The display name for ${key} must be 2 to 20 characters`) });
       }
       dbRun(`INSERT INTO tenant_module_settings (tenant_id,module_key,enabled,display_name,updated_by,updated_at)
         VALUES (?,?,1,?,?,CURRENT_TIMESTAMP)
@@ -70,5 +73,5 @@ openModuleSettingsRoutes.put("/", requireAdmin, (req: AuthRequest, res) => {
     }
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
     res.json({ success:true, data:{ tenant, modules:readModules(tenantId) } });
-  } catch (error:any) { res.status(500).json({ success:false, error:error.message }); }
+  } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
 });
