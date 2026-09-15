@@ -6,8 +6,21 @@ import { useLocale } from "../i18n";
 interface Note { id: number; title: string; content: string; tags: string; created_at: string; }
 interface KFile { id: number; name: string; original_name: string; file_size: number; file_type: string; folder: string; status: string; extracted_summary: string; keywords: string; created_at: string; }
 
+const DEMO_NOTE_TRANSLATIONS: Record<string, Pick<Note, "title" | "content" | "tags">> = {
+  "协作建议使用说明": {
+    title: "Collaboration guidance",
+    content: "AI assistants in group chats can provide independent suggestions and meeting-note drafts. Organization members confirm task assignment, approval, and execution.",
+    tags: "collaboration,guidance",
+  },
+  "开源示例说明": {
+    title: "Open-source demo notice",
+    content: "Sample data is for local development and feature demonstrations only. It does not represent real customers, contracts, pricing, or business commitments.",
+    tags: "open-source,demo",
+  },
+};
+
 export default function KnowledgePage() {
-  const { t } = useLocale();
+  const { t, isEnglish, formatDate } = useLocale();
   const [tab, setTab] = useState<"notes" | "files">("notes");
   const [notes, setNotes] = useState<Note[]>([]);
   const [files, setFiles] = useState<KFile[]>([]);
@@ -122,6 +135,9 @@ export default function KnowledgePage() {
     return <span className="flex items-center gap-1 text-[10px] text-red-500"><AlertTriangle size={10}/>{t("失败", "Failed")}</span>;
   };
   const fmtSize = (kb: number) => kb<1024?`${kb} KB`:`${(kb/1024).toFixed(1)} MB`;
+  const displayNote = (note: Note): Note => isEnglish && DEMO_NOTE_TRANSLATIONS[note.title]
+    ? { ...note, ...DEMO_NOTE_TRANSLATIONS[note.title] }
+    : note;
 
   return (
     <div className="h-full flex flex-col">
@@ -225,22 +241,23 @@ export default function KnowledgePage() {
             <div className="text-center py-16"><FileText size={48} className="text-text-muted mx-auto mb-3 opacity-50"/><p className="text-text-muted text-sm">{t("暂无笔记", "No notes yet")}</p><button onClick={()=>{setShowForm(true)}} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-medium">{t("新建笔记", "New note")}</button></div>
           ):(
             <div className="space-y-2">
-              {fNotes.map(n=>(
-                <div key={n.id} className="bg-bg-card border border-border rounded-lg p-4 hover:border-primary/30 transition-colors">
+              {fNotes.map(note=>{
+                const n = displayNote(note);
+                return <div key={n.id} className="bg-bg-card border border-border rounded-lg p-4 hover:border-primary/30 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-text">{n.title}</h3>
                       <p className="text-xs text-text-muted mt-1 line-clamp-3">{n.content}</p>
                       {n.tags&&<div className="flex flex-wrap gap-1 mt-2">{n.tags.split(",").filter(Boolean).map((t,i)=><span key={i} className="text-[10px] px-1.5 py-0.5 bg-bg rounded text-text-muted">{t.trim()}</span>)}</div>}
-                      <div className="text-[10px] text-text-muted mt-2">{new Date(n.created_at).toLocaleString()}</div>
+                      <div className="text-[10px] text-text-muted mt-2">{formatDate(n.created_at, { dateStyle: "medium", timeStyle: "short" })}</div>
                     </div>
                     <div className="flex items-center gap-1 ml-3">
                       <button onClick={()=>startEdit(n)} className="p-1.5 rounded text-text-muted hover:text-primary hover:bg-bg"><Edit2 size={13}/></button>
                       <button onClick={()=>deleteNote(n.id)} className="p-1.5 rounded text-text-muted hover:text-red-500 hover:bg-bg"><Trash2 size={13}/></button>
                     </div>
                   </div>
-                </div>
-              ))}
+                </div>;
+              })}
             </div>
           )}
         </div>
