@@ -2,15 +2,18 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest } from "../middleware";
 import { getRecentActivities } from "../services/notification";
+import { localizedError } from "../utils/locale";
 
 export const dashboardRoutes = Router();
 dashboardRoutes.use(authenticate);
+
+const dashboardError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 dashboardRoutes.get("/overview", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
 
     const employees = dbGet("SELECT COUNT(*) as c FROM employees WHERE tenant_id = ? AND status = 'active'", [tid]) as any;
@@ -60,7 +63,7 @@ dashboardRoutes.get("/overview", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -68,7 +71,7 @@ dashboardRoutes.get("/task-trend", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
     const days = parseInt(req.query.days as string) || 7;
 
@@ -83,7 +86,7 @@ dashboardRoutes.get("/task-trend", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: trend });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -91,7 +94,7 @@ dashboardRoutes.get("/employee-performance", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
 
     const performance = dbAll(
@@ -107,7 +110,7 @@ dashboardRoutes.get("/employee-performance", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: performance });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -115,7 +118,7 @@ dashboardRoutes.get("/priority-distribution", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
     const distribution = dbAll(
       "SELECT priority, COUNT(*) as count FROM tasks WHERE tenant_id = ? GROUP BY priority",
@@ -123,7 +126,7 @@ dashboardRoutes.get("/priority-distribution", (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: distribution });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -131,7 +134,7 @@ dashboardRoutes.get("/department-stats", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
     const stats = dbAll(
       `SELECT d.id, d.name,
@@ -145,7 +148,7 @@ dashboardRoutes.get("/department-stats", (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: stats });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -155,7 +158,7 @@ dashboardRoutes.get("/activities", (req: AuthRequest, res) => {
     const activities = getRecentActivities(req.user!.tenant_id, limit);
     res.json({ success: true, data: activities });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -164,7 +167,7 @@ dashboardRoutes.get("/modules", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
 
     // 组织架构
@@ -270,7 +273,7 @@ dashboardRoutes.get("/modules", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -278,7 +281,7 @@ dashboardRoutes.get("/ai-stats", (req: AuthRequest, res) => {
   try {
     const tid = req.user!.tenant_id;
     if (tid == null) {
-      return res.status(400).json({ success: false, error: "租户信息缺失，请重新登录" });
+      return res.status(400).json({ success: false, error: dashboardError(req, "租户信息缺失，请重新登录", "Tenant information is missing. Please sign in again") });
     }
 
     const aiMessages = dbGet(
@@ -310,6 +313,6 @@ dashboardRoutes.get("/ai-stats", (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: dashboardError(req, "工作台服务暂时不可用，请稍后重试", "Workspace service is temporarily unavailable. Please try again") });
   }
 });

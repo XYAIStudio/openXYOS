@@ -53,8 +53,8 @@ authRoutes.post("/register", async (req, res) => {
     }
 
     res.json({ success: true, data: { user: result.user, tokens: result.tokens } });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || String(err) });
+  } catch {
+    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -77,8 +77,8 @@ authRoutes.post("/login", async (req, res) => {
         tokens: result.tokens,
       },
     });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || String(err) });
+  } catch {
+    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -87,7 +87,7 @@ authRoutes.post("/refresh", async (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
-      return res.status(400).json({ success: false, error: "refreshToken 必填" });
+      return res.status(400).json({ success: false, error: localizedError(req, "refreshToken 必填", "refreshToken is required") });
     }
 
     const provider = getAuthProvider();
@@ -99,7 +99,7 @@ authRoutes.post("/refresh", async (req, res) => {
 
     res.json({ success: true, data: { tokens: result.tokens } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || String(err) });
+    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -116,7 +116,7 @@ authRoutes.post("/revoke", authenticate, async (req: AuthRequest, res) => {
     const provider = getAuthProvider();
     await provider.revokeUserTokens(req.user!.id);
     res.json({ success: true, message: "令牌已撤销" });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || String(err) });
+  } catch {
+    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
   }
 });

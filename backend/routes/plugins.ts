@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest } from "../middleware";
+import { localizedError } from "../utils/locale";
 
 export const pluginRoutes = Router();
 pluginRoutes.use(authenticate);
+
+const pluginError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 pluginRoutes.get("/", (req: AuthRequest, res) => {
   try {
@@ -21,7 +24,7 @@ pluginRoutes.get("/", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: dbAll(sql, params) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -36,7 +39,7 @@ pluginRoutes.get("/stats", (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { total: total.c, byCategory } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") });
   }
 });
 
@@ -47,12 +50,12 @@ pluginRoutes.post("/:id/toggle", (req: AuthRequest, res) => {
       "SELECT * FROM plugins WHERE id = ? AND tenant_id = ?",
       [parseInt(req.params.id), req.user!.tenant_id]
     ) as any;
-    if (!plugin) return res.status(404).json({ success: false, error: "插件不存在" });
+    if (!plugin) return res.status(404).json({ success: false, error: pluginError(req, "插件不存在", "Plugin not found") });
 
     const newStatus = plugin.status === "active" ? "disabled" : "active";
     dbRun("UPDATE plugins SET status = ? WHERE id = ? AND tenant_id = ?", [newStatus, plugin.id, req.user!.tenant_id]);
     res.json({ success: true, data: { id: plugin.id, status: newStatus } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取租户已安装的插件ID列表
@@ -63,7 +66,7 @@ pluginRoutes.get("/installed", (req: AuthRequest, res) => {
       [req.user!.tenant_id]
     ) as any[];
     res.json({ success: true, data: rows.map((r: any) => r.plugin_id) });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") }); }
 });
 
 // 安装插件
@@ -73,7 +76,7 @@ pluginRoutes.post("/:id/install", (req: AuthRequest, res) => {
       "SELECT * FROM plugins WHERE id = ? AND tenant_id = ?",
       [parseInt(req.params.id), req.user!.tenant_id]
     ) as any;
-    if (!plugin) return res.status(404).json({ success: false, error: "插件不存在" });
+    if (!plugin) return res.status(404).json({ success: false, error: pluginError(req, "插件不存在", "Plugin not found") });
 
     const already = dbGet(
       "SELECT id FROM tenant_plugin_installs WHERE tenant_id = ? AND plugin_id = ?",
@@ -92,8 +95,8 @@ pluginRoutes.post("/:id/install", (req: AuthRequest, res) => {
       dbRun("UPDATE plugins SET status = 'active' WHERE id = ? AND tenant_id = ?", [plugin.id, req.user!.tenant_id]);
     }
 
-    res.json({ success: true, data: { installed: true, message: "安装成功" } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+    res.json({ success: true, data: { installed: true, message: pluginError(req, "安装成功", "Plugin installed") } });
+  } catch (err: any) { res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") }); }
 });
 
 // 卸载插件
@@ -104,5 +107,5 @@ pluginRoutes.post("/:id/uninstall", (req: AuthRequest, res) => {
       [req.user!.tenant_id, parseInt(req.params.id)]
     );
     res.json({ success: true, data: { installed: false } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err: any) { res.status(500).json({ success: false, error: pluginError(req, "插件服务暂时不可用，请稍后重试", "Plugin service is temporarily unavailable. Please try again") }); }
 });

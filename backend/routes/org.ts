@@ -2,9 +2,12 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware";
 import { upload } from "../middleware/upload";
+import { localizedError } from "../utils/locale";
 
 export const orgRoutes = Router();
 orgRoutes.use(authenticate);
+
+const orgError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 orgRoutes.get("/tree", (req: AuthRequest, res) => {
   try {
@@ -58,27 +61,27 @@ orgRoutes.get("/tree", (req: AuthRequest, res) => {
     }
 
     res.json({ success: true, data: roots });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.get("/departments", (req: AuthRequest, res) => {
   try {
     const departments = dbAll("SELECT * FROM departments WHERE tenant_id = ? ORDER BY sort_order", [req.user!.tenant_id]);
     res.json({ success: true, data: departments });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.post("/departments", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { name, parent_id, sort_order, description, department_code, cost_center, budget_allocation, headcount, function_type, level } = req.body;
-    if (!name) return res.status(400).json({ success: false, error: "部门名称必填" });
+    if (!name) return res.status(400).json({ success: false, error: orgError(req, "部门名称必填", "Department name is required") });
 
     const result = dbRun(
       `INSERT INTO departments (company_id, name, parent_id, sort_order, description, department_code, cost_center, budget_allocation, headcount, function_type, level, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [1, name, parent_id || null, sort_order || 0, description || "", department_code || null, cost_center || null, budget_allocation || 0, headcount || 0, function_type || "functional", level || 1, req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.put("/departments/:id", requireAdmin, (req: AuthRequest, res) => {
@@ -98,37 +101,37 @@ orgRoutes.put("/departments/:id", requireAdmin, (req: AuthRequest, res) => {
     if (function_type !== undefined) { updates.push("function_type = ?"); params.push(function_type); }
     if (level !== undefined) { updates.push("level = ?"); params.push(level); }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: orgError(req, "无更新内容", "No changes were provided") });
 
     params.push(req.params.id, req.user!.tenant_id);
     dbRun(`UPDATE departments SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.delete("/departments/:id", requireAdmin, (req: AuthRequest, res) => {
   try {
     const employees = dbAll("SELECT COUNT(*) as c FROM employees WHERE department_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
     if (employees[0]?.c > 0) {
-      return res.status(400).json({ success: false, error: "部门下还有员工，无法删除" });
+      return res.status(400).json({ success: false, error: orgError(req, "部门下还有员工，无法删除", "This department still has employees and cannot be deleted") });
     }
 
     dbRun("DELETE FROM departments WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.put("/departments/reorder", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { items } = req.body;
-    if (!items || !Array.isArray(items)) return res.status(400).json({ success: false, error: "参数错误" });
+    if (!items || !Array.isArray(items)) return res.status(400).json({ success: false, error: orgError(req, "参数错误", "Invalid request parameters") });
 
     for (const item of items) {
       dbRun("UPDATE departments SET sort_order = ?, parent_id = ? WHERE id = ? AND tenant_id = ?",
         [item.sort_order, item.parent_id || null, item.id, req.user!.tenant_id]);
     }
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 员工信息编辑（超级管理员可跨租户，管理员可改本租户，普通用户仅可改自己）
@@ -148,7 +151,7 @@ orgRoutes.put("/employees/:id", (req: AuthRequest, res) => {
     } else {
       emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND user_id = ?", [eid, user.tenant_id, user.id]);
     }
-    if (!emp) return res.status(404).json({ success: false, error: "员工不存在或无权限" });
+    if (!emp) return res.status(404).json({ success: false, error: orgError(req, "员工不存在或无权限", "Employee not found or access is denied") });
 
     const { name, role, description, skills, agent_type, department_id, employee_type, avatar_emoji, status } = req.body;
     const updates: string[] = [];
@@ -164,14 +167,14 @@ orgRoutes.put("/employees/:id", (req: AuthRequest, res) => {
     if (avatar_emoji !== undefined) { updates.push("avatar_emoji = ?"); params.push(avatar_emoji); }
     if (status !== undefined) { updates.push("status = ?"); params.push(status); }
 
-    if (updates.length === 0) return res.status(400).json({ success: false, error: "无更新内容" });
+    if (updates.length === 0) return res.status(400).json({ success: false, error: orgError(req, "无更新内容", "No changes were provided") });
 
     // 更新时保持原有 tenant 约束：超级管理员用 emp 的 tenant，管理员/普通用户用自己的 tenant
     const targetTenant = isSuperAdmin ? emp.tenant_id : user.tenant_id;
     params.push(eid, targetTenant);
     dbRun(`UPDATE employees SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 员工形象照上传（管理员或本人可上传；超级管理员可跨租户）
@@ -191,14 +194,14 @@ orgRoutes.post("/employees/:id/avatar", upload.single("file"), (req: AuthRequest
     } else {
       emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND user_id = ?", [eid, user.tenant_id, user.id]);
     }
-    if (!emp) return res.status(404).json({ success: false, error: "员工不存在或无权限" });
+    if (!emp) return res.status(404).json({ success: false, error: orgError(req, "员工不存在或无权限", "Employee not found or access is denied") });
 
-    if (!req.file) return res.status(400).json({ success: false, error: "请选择图片文件" });
+    if (!req.file) return res.status(400).json({ success: false, error: orgError(req, "请选择图片文件", "Please select an image file") });
 
     // 允许的图片格式
     const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif", "image/svg+xml"];
     if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({ success: false, error: "仅支持 PNG/JPG/WebP/GIF/SVG 格式图片" });
+      return res.status(400).json({ success: false, error: orgError(req, "仅支持 PNG/JPG/WebP/GIF/SVG 格式图片", "Only PNG, JPG, WebP, GIF, and SVG images are supported") });
     }
 
     const filename = req.file.filename;
@@ -211,7 +214,7 @@ orgRoutes.post("/employees/:id/avatar", upload.single("file"), (req: AuthRequest
     }
 
     res.json({ success: true, data: { avatar_url: `/uploads/${filename}` } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 53张序号系统预设头像
@@ -289,11 +292,11 @@ orgRoutes.post("/employees/:id/avatar-preset", (req: AuthRequest, res) => {
       emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND user_id = ?", [eid, user.tenant_id, user.id]);
     }
 
-    if (!emp) return res.status(404).json({ success: false, error: "员工不存在或无权限" });
+    if (!emp) return res.status(404).json({ success: false, error: orgError(req, "员工不存在或无权限", "Employee not found or access is denied") });
 
     const { avatar_url } = req.body;
     if (!avatar_url || !PRESET_AVATARS.includes(avatar_url)) {
-      return res.status(400).json({ success: false, error: "无效的预设头像" });
+      return res.status(400).json({ success: false, error: orgError(req, "无效的预设头像", "Invalid preset avatar") });
     }
 
     // 超级管理员更新任意员工；管理员/普通用户仅更新有权限的员工
@@ -304,27 +307,27 @@ orgRoutes.post("/employees/:id/avatar-preset", (req: AuthRequest, res) => {
     }
 
     res.json({ success: true, data: { avatar_url } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.post("/employees", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { name, role, skills, agent_type, department_id, employee_type, avatar_emoji } = req.body;
-    if (!name || !department_id) return res.status(400).json({ success: false, error: "姓名和部门必填" });
+    if (!name || !department_id) return res.status(400).json({ success: false, error: orgError(req, "姓名和部门必填", "Name and department are required") });
 
     const result = dbRun(
       "INSERT INTO employees (company_id, department_id, name, role, agent_type, employee_type, skills, avatar_emoji, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [1, department_id, name, role || "", agent_type || null, employee_type || "human", skills || "", avatar_emoji || "👤", req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.delete("/employees/:id", requireAdmin, (req: AuthRequest, res) => {
   try {
     dbRun("UPDATE employees SET status = 'inactive' WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取员工汇报关系
@@ -338,7 +341,7 @@ orgRoutes.get("/employees/:id/reporting-lines", (req: AuthRequest, res) => {
       [req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: lines });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 添加汇报关系
@@ -346,7 +349,7 @@ orgRoutes.post("/reporting-lines", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { employee_id, manager_id, line_type, effective_date } = req.body;
     if (!employee_id || !manager_id) {
-      return res.status(400).json({ success: false, error: "员工ID和上级ID必填" });
+      return res.status(400).json({ success: false, error: orgError(req, "员工ID和上级ID必填", "Employee ID and manager ID are required") });
     }
     
     const result = dbRun(
@@ -354,7 +357,7 @@ orgRoutes.post("/reporting-lines", requireAdmin, (req: AuthRequest, res) => {
       [employee_id, manager_id, line_type || "solid", effective_date || new Date().toISOString(), req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 删除汇报关系
@@ -362,7 +365,7 @@ orgRoutes.delete("/reporting-lines/:id", requireAdmin, (req: AuthRequest, res) =
   try {
     dbRun("DELETE FROM reporting_lines WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取职级列表
@@ -373,7 +376,7 @@ orgRoutes.get("/position-levels", (req: AuthRequest, res) => {
       [req.user!.tenant_id]
     );
     res.json({ success: true, data: levels });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 更新员工职级
@@ -385,7 +388,7 @@ orgRoutes.put("/employees/:id/position", requireAdmin, (req: AuthRequest, res) =
       [position_level_id || null, position_sequence || null, req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取技能库
@@ -401,7 +404,7 @@ orgRoutes.get("/skills", (req: AuthRequest, res) => {
     sql += " ORDER BY category, install_count DESC, name";
     const skills = dbAll(sql, params);
     res.json({ success: true, data: skills });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取技能分类列表
@@ -412,7 +415,7 @@ orgRoutes.get("/skills/categories", (req: AuthRequest, res) => {
       [req.user!.tenant_id]
     );
     res.json({ success: true, data: categories });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取员工技能
@@ -427,14 +430,14 @@ orgRoutes.get("/employees/:id/skills", (req: AuthRequest, res) => {
       [req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: skills });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 设置员工技能（全量替换）
 orgRoutes.post("/employees/:id/skills", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { skill_ids } = req.body;
-    if (!Array.isArray(skill_ids)) return res.status(400).json({ success: false, error: "skill_ids必须是数组" });
+    if (!Array.isArray(skill_ids)) return res.status(400).json({ success: false, error: orgError(req, "skill_ids必须是数组", "skill_ids must be an array") });
 
     const eid = req.params.id;
     const tid = req.user!.tenant_id;
@@ -464,14 +467,14 @@ orgRoutes.post("/employees/:id/skills", requireAdmin, (req: AuthRequest, res) =>
     }
 
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 智能补齐：根据agent_type模板自动生成
 orgRoutes.post("/employees/:id/auto-fill", requireAdmin, (req: AuthRequest, res) => {
   try {
     const emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
-    if (!emp) return res.status(404).json({ success: false, error: "员工不存在" });
+    if (!emp) return res.status(404).json({ success: false, error: orgError(req, "员工不存在", "Employee not found") });
 
     // 动态导入模板
     const { getAgentTemplate } = require("../data/agent-templates");
@@ -530,7 +533,7 @@ orgRoutes.post("/employees/:id/auto-fill", requireAdmin, (req: AuthRequest, res)
         skills: updates.includes("skills = ?") ? template.skills : null,
       },
     });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // 获取agent_type模板列表
@@ -538,7 +541,7 @@ orgRoutes.get("/agent-templates", (req: AuthRequest, res) => {
   try {
     const { getAgentTypeOptions } = require("../data/agent-templates");
     res.json({ success: true, data: getAgentTypeOptions() });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 // ===== 组织架构版本管理 =====
@@ -550,19 +553,19 @@ orgRoutes.get("/versions", (req: AuthRequest, res) => {
       [req.user!.tenant_id]
     );
     res.json({ success: true, data: versions });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.post("/versions", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { version_number, description, effective_date } = req.body;
-    if (!version_number) return res.status(400).json({ success: false, error: "版本号必填" });
+    if (!version_number) return res.status(400).json({ success: false, error: orgError(req, "版本号必填", "Version number is required") });
     const result = dbRun(
       "INSERT INTO org_versions (version_number, description, created_by, effective_date, tenant_id) VALUES (?, ?, ?, ?, ?)",
       [version_number, description || "", req.user!.id, effective_date || null, req.user!.tenant_id]
     );
     res.json({ success: true, data: { id: result.lastInsertRowid } });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.get("/versions/:id/changes", (req: AuthRequest, res) => {
@@ -572,17 +575,17 @@ orgRoutes.get("/versions/:id/changes", (req: AuthRequest, res) => {
       [req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true, data: changes });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
 orgRoutes.put("/versions/:id/status", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
-    if (!status) return res.status(400).json({ success: false, error: "状态必填" });
+    if (!status) return res.status(400).json({ success: false, error: orgError(req, "状态必填", "Status is required") });
     dbRun(
       "UPDATE org_versions SET status = ?, approved_by = ? WHERE id = ? AND tenant_id = ?",
       [status, status === "approved" ? req.user!.id : null, req.params.id, req.user!.tenant_id]
     );
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
