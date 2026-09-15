@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
+import { useLocale } from "../i18n";
 import "./hero-water.css";
 
 /** Brand animation only: falling water, impact waves, then a raised enamel logo. */
 export default function HeroWaterScene() {
+  const { t } = useLocale();
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -136,5 +138,5 @@ export default function HeroWaterScene() {
     resize(); draw();
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); logo.onload = null; motion.removeEventListener("change", restart); document.removeEventListener("visibilitychange", restart); };
   }, []);
-  return <div className="ox-water-scene" role="img" aria-label="水滴落入水面，立体 Logo 与思源黑体 openXYOS 字标同步浮出，字标悬停在 Logo 正上方"><canvas ref={ref}/></div>;
+  return <div className="ox-water-scene" role="img" aria-label={t("水滴落入水面，立体 Logo 与思源黑体 openXYOS 字标同步浮出，字标悬停在 Logo 正上方", "A water droplet creates ripples as the 3D openXYOS logo and wordmark rise above the surface")}><canvas ref={ref}/></div>;
 }
