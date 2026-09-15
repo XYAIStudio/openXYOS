@@ -19,6 +19,7 @@ import {
   verifyDownloadToken,
 } from "../services/download-token";
 import { logActivity } from "../services/notification";
+import { localizedError } from "../utils/locale";
 
 const UPLOAD_DIR = path.resolve(__dirname, "..", "..", "uploads");
 
@@ -73,7 +74,7 @@ fileRoutes.post("/:id/token", authenticate, (req: AuthRequest, res) => {
   try {
     const fileId = parseInt(req.params.id);
     if (isNaN(fileId)) {
-      return res.status(400).json({ success: false, error: "无效文件 ID" });
+      return res.status(400).json({ success: false, error: localizedError(req, "无效文件 ID", "Invalid file ID") });
     }
 
     // 从知识文件表查询文件记录（可扩展为统一文件索引表）
@@ -83,7 +84,7 @@ fileRoutes.post("/:id/token", authenticate, (req: AuthRequest, res) => {
     ) as any;
 
     if (!file) {
-      return res.status(404).json({ success: false, error: "文件不存在或无访问权限" });
+      return res.status(404).json({ success: false, error: localizedError(req, "文件不存在或无访问权限", "File not found or access is denied") });
     }
 
     const token = generateDownloadToken(fileId, req.user!.id, req.user!.tenant_id);
@@ -94,7 +95,7 @@ fileRoutes.post("/:id/token", authenticate, (req: AuthRequest, res) => {
       expiresInSeconds: 5 * 60,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: localizedError(req, "文件令牌服务暂时不可用，请稍后重试", "The file token service is temporarily unavailable. Please try again.") });
   }
 });
 
@@ -106,18 +107,18 @@ fileRoutes.get("/:id/download", (req: AuthRequest, res) => {
   try {
     const token = req.query.token as string;
     if (!token) {
-      return res.status(401).json({ success: false, error: "缺少下载令牌" });
+      return res.status(401).json({ success: false, error: localizedError(req, "缺少下载令牌", "Download token is required") });
     }
 
     // 验证令牌
     const payload = verifyDownloadToken(token);
     if (!payload) {
-      return res.status(403).json({ success: false, error: "下载令牌无效或已过期" });
+      return res.status(403).json({ success: false, error: localizedError(req, "下载令牌无效或已过期", "Download token is invalid or has expired") });
     }
 
     const fileId = parseInt(req.params.id);
     if (payload.fid !== fileId) {
-      return res.status(403).json({ success: false, error: "令牌与文件不匹配" });
+      return res.status(403).json({ success: false, error: localizedError(req, "令牌与文件不匹配", "Download token does not match this file") });
     }
 
     // 查询文件记录
@@ -127,13 +128,13 @@ fileRoutes.get("/:id/download", (req: AuthRequest, res) => {
     ) as any;
 
     if (!file) {
-      return res.status(404).json({ success: false, error: "文件不存在" });
+      return res.status(404).json({ success: false, error: localizedError(req, "文件不存在", "File not found") });
     }
 
     // 安全解析存储路径
     const storedPath = resolveStoredFile(file.file_path || "", payload.tid);
     if (!storedPath || !fs.existsSync(storedPath)) {
-      return res.status(404).json({ success: false, error: "文件内容不存在" });
+      return res.status(404).json({ success: false, error: localizedError(req, "文件内容不存在", "File content is unavailable") });
     }
 
     // 审计日志
@@ -159,6 +160,6 @@ fileRoutes.get("/:id/download", (req: AuthRequest, res) => {
     const readStream = fs.createReadStream(storedPath);
     readStream.pipe(res);
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: localizedError(req, "文件下载服务暂时不可用，请稍后重试", "The file download service is temporarily unavailable. Please try again.") });
   }
 });
