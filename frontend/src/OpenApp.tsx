@@ -17,11 +17,36 @@ const MODULE_ROUTES:Array<{prefix:string;key:OpenModuleKey}>=[["/announcements",
 const moduleFor=(path:string)=>MODULE_ROUTES.find(item=>path===item.prefix||path.startsWith(item.prefix+"/"))?.key;
 function Loading(){const { t }=useLocale();return <div className="h-40 grid place-items-center text-text-muted animate-pulse">{t("加载中…", "Loading…")}</div>}
 
+const PAGE_TITLES: Record<string, [string, string]> = {
+  "/auth": ["登录", "Sign in"],
+  "/user-agreement": ["用户协议", "Terms of Service"],
+  "/privacy-policy": ["隐私政策", "Privacy Policy"],
+  "/app": ["工作台", "Workspace"],
+  "/announcements": ["通知公告", "Announcements"],
+  "/org": ["组织架构", "Organization"],
+  "/employees": ["人机资源", "Human–AI resources"],
+  "/skills": ["技能插件", "Skills & plugins"],
+  "/chat": ["沟通协作", "Collaboration"],
+  "/agents": ["智能体定制", "Agent Studio"],
+  "/tasks": ["任务管理", "Tasks"],
+  "/knowledge": ["知识库", "Knowledge base"],
+  "/reflections": ["反思引擎", "Reflection engine"],
+  "/governance": ["治理引擎", "Governance engine"],
+  "/settings": ["系统设置", "System settings"],
+};
+
+function pageTitle(pathname: string, isEnglish: boolean): string {
+  const match = Object.entries(PAGE_TITLES).find(([path]) => pathname === path || pathname.startsWith(`${path}/`));
+  if (!match) return isEnglish ? "openXYOS" : "openXYOS";
+  return `${match[1][isEnglish ? 1 : 0]} | openXYOS`;
+}
+
 export default function OpenApp(){
  const {user,token,loading,init}=useAuthStore(),{init:initTheme}=useThemeStore(),modules=useOpenModules(s=>s.modules),moduleTenantId=useOpenModules(s=>s.tenantId),moduleError=useOpenModules(s=>s.error),loadModules=useOpenModules(s=>s.load),resetModules=useOpenModules(s=>s.reset),location=useLocation();
- const { t }=useLocale();
+ const { t, isEnglish }=useLocale();
  const [collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false);
  useEffect(()=>{init();initTheme()},[init,initTheme]);useEffect(()=>{if(user&&token)void loadModules();else resetModules()},[user?.tenant_id,token,loadModules,resetModules]);
+ useEffect(()=>{ if(location.pathname!=="/") document.title=pageTitle(location.pathname,isEnglish); },[isEnglish,location.pathname]);
  const publicPath=["/","/auth","/user-agreement","/privacy-policy"].includes(location.pathname);
  if(publicPath)return <Routes><Route path="/" element={<OpenHomePage/>}/><Route path="/auth" element={<AuthPage/>}/><Route path="/user-agreement" element={<UserAgreementPage/>}/><Route path="/privacy-policy" element={<PrivacyPolicyPage/>}/></Routes>;
  if(loading||(user&&!moduleError&&moduleTenantId!==user.tenant_id))return <div className="h-screen grid place-items-center bg-bg text-text-muted">{t("加载中…", "Loading…")}</div>;
