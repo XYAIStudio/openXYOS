@@ -47,6 +47,7 @@ import reviewsRoutes from "./routes/reviews";
 import { announcementRoutes } from "./routes/announcements";
 import { analyticsRoutes } from "./routes/analytics";
 import { assistantRoutes } from "./routes/assistant";
+import { fileRoutes } from "./routes/files";
 import { seedDatabase } from "./seed";
 import { authenticate } from "./middleware";
 import { setupWebSocket } from "./services/websocket";
@@ -196,6 +197,7 @@ app.use("/api/reviews", reviewsRoutes);  // V4.1 人在回路
 app.use("/api/announcements", announcementRoutes);  // P25 通知公告
 app.use("/api/analytics", analyticsRoutes);          // P28 访问统计
 app.use("/api/assistant", assistantRoutes);          // P28 智能助手
+app.use("/api/files", fileRoutes);                    // 受控文件令牌与下载
 
   // 全局错误处理中间件（必须在所有路由之后注册）
   app.use(globalErrorHandler);
