@@ -8,11 +8,13 @@ import { saveShortMemory } from "../services/memory";
 import { AuditTrailEngine } from "../services/audit-trail";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import PDFDocument from "pdfkit";
-import { localizedError } from "../utils/locale";
+import { isEnglishRequest, localizedError } from "../utils/locale";
+import type { AIOutputLanguage } from "../services/ai";
 
 export const chatRoutes = Router();
 
 const chatError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
+const chatOutputLanguage = (req: AuthRequest): AIOutputLanguage => isEnglishRequest(req) ? "en" : "zh";
 
 function cleanMarkdown(text: string): string {
   return text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "").trim();
@@ -202,6 +204,7 @@ function isUserConfirming(content: string): boolean {
 chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
   try {
     const { content, reply_to_id } = req.body;
+    const language = chatOutputLanguage(req);
     if (!content) return res.status(400).json({ success: false, error: chatError(req, "内容必填", "Content is required") });
 
     const chat = requireChatMember(req, res, req.params.id);
@@ -315,7 +318,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
       const historyRows = dbAll("SELECT content, sender_type FROM messages WHERE chat_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT 10", [chatId, req.user!.tenant_id]) as any[];
       const chatHistory = historyRows.reverse().map(m => ({ role: m.sender_type === "user" ? "user" as const : "assistant" as const, content: m.content }));
       pushProgress("mention_reasoning", `💭 ${mentionedEmployee.name} 正在分析回复...`, "mention_reasoning");
-      const reply = await getSingleEmployeeResponse(mentionedEmployee, content, chatHistory);
+      const reply = await getSingleEmployeeResponse(mentionedEmployee, content, chatHistory, language);
       const insertResult = dbRun("INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, ?, 'employee', ?, ?, 'ai_mention', ?)", [chatId, mentionedEmployee.id, `${mentionedEmployee.name} · ${mentionedEmployee.role}`, reply, req.user!.tenant_id]);
       
       broadcastToChat(chatId, {
@@ -340,7 +343,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
       pushProgress("single_start", `💬 单聊模式：${employee.name}(${employee.role}) 正在独立分析...`, "single_start");
       const historyRows = dbAll("SELECT content, sender_type FROM messages WHERE chat_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT 10", [chatId, req.user!.tenant_id]) as any[];
       const chatHistory = historyRows.reverse().map(m => ({ role: m.sender_type === "user" ? "user" as const : "assistant" as const, content: m.content }));
-      const reply = await getSingleEmployeeResponse(employee, content, chatHistory);
+      const reply = await getSingleEmployeeResponse(employee, content, chatHistory, language);
       const insertResult = dbRun("INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, ?, 'employee', ?, ?, 'ai', ?)", [chatId, employee.id, `${employee.name} · ${employee.role}`, reply, req.user!.tenant_id]);
       
       // 自动保存到AI员工记忆
@@ -379,7 +382,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
       const topic = firstUserMsg?.content?.substring(0, 30) || "讨论";
       
       // 生成会议纪要
-      const minutes = await generateMeetingMinutes(content, chatEmployees, { steps: [], summary: lastAiSummary.content });
+      const minutes = await generateMeetingMinutes(content, chatEmployees, { steps: [], summary: lastAiSummary.content }, language);
       
       // 保存会议纪要到聊天
       const insertResult = dbRun("INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, NULL, 'system', '系统', ?, 'meeting_minutes', ?)", [chatId, minutes, req.user!.tenant_id]);
@@ -408,7 +411,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
     // 检测是否为闲聊
     if (isCasualChat(content)) {
       pushProgress("casual_start", `💬 检测为闲聊消息，AI员工自由互动中...`, "casual_start");
-      const casualResponses = await getCasualChatResponse(chatEmployees, content, chatHistory);
+      const casualResponses = await getCasualChatResponse(chatEmployees, content, chatHistory, language);
       
       for (const resp of casualResponses) {
         const insertResult = dbRun(
@@ -434,7 +437,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
       pushProgress(phase, detail, stepKey);
     };
     pushProgress("group_start", "🤝 正在征询群内智能助手的独立建议…", "group_start");
-    result = await runGroupConversation(content, chatEmployees, chatHistory, progressCb);
+    result = await runGroupConversation(content, chatEmployees, chatHistory, progressCb, language);
     pushProgress("group_done", `✨ 协作完成（总用时 ${Math.round((Date.now() - sendStart)/1000)} 秒）`, "group_done");
 
     // 依次保存每个步骤的消息
@@ -493,6 +496,7 @@ chatRoutes.post("/:id/messages", async (req: AuthRequest, res) => {
 // 生成会议纪要
 chatRoutes.post("/:id/minutes", async (req: AuthRequest, res) => {
   try {
+    const language = chatOutputLanguage(req);
     const chat = requireChatMember(req, res, req.params.id);
     if (!chat) return;
     const chatId = chat.id;
@@ -512,7 +516,7 @@ chatRoutes.post("/:id/minutes", async (req: AuthRequest, res) => {
       content: m.content,
     }));
 
-    const minutes = await generateMeetingMinutes(lastUserMsg?.content || "讨论", chatEmployees, { steps, summary: lastSummary?.content || "" });
+    const minutes = await generateMeetingMinutes(lastUserMsg?.content || (language === "en" ? "Discussion" : "讨论"), chatEmployees, { steps, summary: lastSummary?.content || "" }, language);
     const insertResult = dbRun("INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, NULL, 'system', '系统', ?, 'meeting_minutes', ?)", [chatId, minutes, req.user!.tenant_id]);
     broadcastToChat(chatId, { type: "new_message", chatId, message: { id: insertResult.lastInsertRowid, sender_type: "system", sender_name: "系统", content: minutes, message_type: "meeting_minutes", created_at: new Date().toISOString() } });
 
@@ -894,6 +898,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
     if (!chatAccess) return;
     const chatId = chatAccess.id;
     const { content } = req.body;
+    const language = chatOutputLanguage(req);
     if (!content) return res.status(400).json({ success: false, error: chatError(req, "内容必填", "Content is required") });
 
     const fullContent = `@全体成员 ${content}`;
@@ -973,7 +978,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
       pushProgress("atall_mention_start", `🎯 检测到 @${mentionedEmployee.name}(${mentionedEmployee.role})，将直接由该员工回复`, "atall_mention_start");
       const historyRows = dbAll("SELECT content, sender_type FROM messages WHERE chat_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT 10", [chatId, req.user!.tenant_id]) as any[];
       const chatHistory = historyRows.reverse().map(m => ({ role: m.sender_type === "user" ? "user" as const : "assistant" as const, content: m.content }));
-      const reply = await getSingleEmployeeResponse(mentionedEmployee, fullContent, chatHistory);
+      const reply = await getSingleEmployeeResponse(mentionedEmployee, fullContent, chatHistory, language);
       dbRun("INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, ?, 'employee', ?, ?, 'ai_mention', ?)", [chatId, mentionedEmployee.id, `${mentionedEmployee.name} · ${mentionedEmployee.role}`, reply, req.user!.tenant_id]);
       broadcastToChat(chatId, {
         type: "new_message", chatId,
@@ -994,7 +999,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
 
     if (isCasualChat(fullContent)) {
       pushProgress("atall_casual", `💬 检测为闲聊消息，AI员工自由互动中...`, "atall_casual");
-      const casualResponses = await getCasualChatResponse(chatEmployees, fullContent, chatHistory);
+      const casualResponses = await getCasualChatResponse(chatEmployees, fullContent, chatHistory, language);
       for (const resp of casualResponses) {
         const insertResult = dbRun(
           "INSERT INTO messages (chat_id, sender_id, sender_type, sender_name, content, message_type, tenant_id) VALUES (?, ?, 'employee', ?, ?, 'ai', ?)",
@@ -1011,7 +1016,7 @@ chatRoutes.post("/:id/at-all", async (req: AuthRequest, res) => {
       const progressCb = (phase: string, detail: string, stepKey?: string, agentResult?: any) => {
         pushProgress(phase, detail, stepKey);
       };
-      const result2 = await runGroupConversation(fullContent, chatEmployees, chatHistory, progressCb);
+      const result2 = await runGroupConversation(fullContent, chatEmployees, chatHistory, progressCb, language);
       pushProgress("atall_group_done", `✨ 协作完成（总用时 ${Math.round((Date.now()-sendStart)/1000)}秒）`, "atall_group_done");
       for (const step of result2.steps) {
         const msgContent = step.content;

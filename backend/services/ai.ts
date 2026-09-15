@@ -94,19 +94,21 @@ export async function callLLMStream(messages: AIMessage[], callbacks: StreamCall
   callbacks.onComplete?.(result.content);
 }
 
-function buildEmployeePrompt(employee: any): string {
+function buildEmployeePrompt(employee: any, language: AIOutputLanguage = "zh"): string {
   const template = AGENT_TEMPLATES[employee.agent_type];
   const role = employee.role || template?.role || "智能助手";
   const skills = employee.skills || template?.skills?.join("、") || "通用协作";
-  return `你是组织中的智能助手「${employee.name || role}」，岗位是「${role}」。\n专业范围：${skills}。\n请基于已知信息给出专业建议；不要杜撰数据、代替人类作决定或声称拥有未提供的权限。`;
+  return language === "en"
+    ? `${languageInstruction(language)}\nYou are the organizational AI employee "${employee.name || role}". Role reference: ${role}. Professional scope: ${skills}. Provide grounded, practical advice; do not invent facts, make decisions for humans, or claim permissions you were not given.`
+    : `${languageInstruction(language)}\n你是组织中的智能助手「${employee.name || role}」，岗位是「${role}」。\n专业范围：${skills}。\n请基于已知信息给出专业建议；不要杜撰数据、代替人类作决定或声称拥有未提供的权限。`;
 }
 
-export async function getSingleEmployeeResponse(employee: any, userMessage: string, chatHistory: { role: "user" | "assistant"; content: string }[]): Promise<string> {
+export async function getSingleEmployeeResponse(employee: any, userMessage: string, chatHistory: { role: "user" | "assistant"; content: string }[], language: AIOutputLanguage = "zh"): Promise<string> {
   const result = await callLLM([
-    { role: "system", content: buildEmployeePrompt(employee) },
+    { role: "system", content: buildEmployeePrompt(employee, language) },
     ...chatHistory.slice(-8),
     { role: "user", content: sanitizeLLMInput(userMessage) },
-  ], 0.7, 2_500);
+  ], 0.7, 2_500, language);
   return result.content;
 }
 
@@ -122,23 +124,23 @@ export interface GroupConversationResult {
   summary: string;
 }
 
-export async function runGroupConversation(userMessage: string, employees: any[], history: { role: "user" | "assistant"; content: string }[], onProgress?: (phase: string, detail: string, stepKey?: string) => void): Promise<GroupConversationResult> {
+export async function runGroupConversation(userMessage: string, employees: any[], history: { role: "user" | "assistant"; content: string }[], onProgress?: (phase: string, detail: string, stepKey?: string) => void, language: AIOutputLanguage = "zh"): Promise<GroupConversationResult> {
   const steps: GroupConversationStep[] = [];
   for (const employee of employees.slice(0, 6)) {
-    onProgress?.("group_reply", `${employee.name} 正在准备建议…`, `group_${employee.id}`);
-    steps.push({ employee_name: employee.name, employee_role: employee.role, agent_type: employee.agent_type, content: await getSingleEmployeeResponse(employee, userMessage, history) });
+    onProgress?.("group_reply", language === "en" ? `${employee.name} is preparing advice…` : `${employee.name} 正在准备建议…`, `group_${employee.id}`);
+    steps.push({ employee_name: employee.name, employee_role: employee.role, agent_type: employee.agent_type, content: await getSingleEmployeeResponse(employee, userMessage, history, language) });
   }
-  return { steps, summary: steps.length ? "以上为独立建议，最终判断与执行由组织成员负责。" : "当前群聊中没有可用的智能助手。" };
+  return { steps, summary: steps.length ? (language === "en" ? "These are independent suggestions. Final judgment and execution remain with organization members." : "以上为独立建议，最终判断与执行由组织成员负责。") : (language === "en" ? "No AI employees are available in this group chat." : "当前群聊中没有可用的智能助手。") };
 }
 
-export async function generateMeetingMinutes(userMessage: string, employees: any[], result: GroupConversationResult): Promise<string> {
+export async function generateMeetingMinutes(userMessage: string, employees: any[], result: GroupConversationResult, language: AIOutputLanguage = "zh"): Promise<string> {
   const participants = employees.map(employee => `${employee.name}（${employee.role}）`).join("、");
   const discussion = result.steps.map(step => `【${step.employee_name}】${step.content}`).join("\n\n");
   const generated = await callLLM([
-    { role: "system", content: "你是会议记录助手。请根据输入生成简明会议纪要，包含议题、讨论要点、待确认事项与后续行动。不得把建议表述为已批准的正式决定。" },
-    { role: "user", content: `议题：${userMessage}\n参会人：${participants}\n讨论内容：\n${discussion}\n提示：${result.summary}` },
-  ], 0.3, 1_800);
-  return `# 会议纪要\n\n${generated.content}\n\n---\n\n*本纪要由 AI 草拟，需人工确认。*`;
+    { role: "system", content: language === "en" ? "You are a meeting-notes assistant. Write concise, structured English minutes covering the topic, discussion points, items to confirm, and follow-up actions. Do not present recommendations as approved decisions." : "你是会议记录助手。请根据输入生成简明会议纪要，包含议题、讨论要点、待确认事项与后续行动。不得把建议表述为已批准的正式决定。" },
+    { role: "user", content: language === "en" ? `Topic: ${userMessage}\nParticipants: ${participants}\nDiscussion:\n${discussion}\nNote: ${result.summary}` : `议题：${userMessage}\n参会人：${participants}\n讨论内容：\n${discussion}\n提示：${result.summary}` },
+  ], 0.3, 1_800, language);
+  return language === "en" ? `# Meeting Minutes\n\n${generated.content}\n\n---\n\n*These minutes were drafted by AI and require human confirmation.*` : `# 会议纪要\n\n${generated.content}\n\n---\n\n*本纪要由 AI 草拟，需人工确认。*`;
 }
 
 export function isCasualChat(content: string): boolean {
@@ -147,8 +149,8 @@ export function isCasualChat(content: string): boolean {
   return /^(你好|您好|早上好|下午好|晚上好|hi|hello|在吗|谢谢|收到)/i.test(text);
 }
 
-export async function getCasualChatResponse(employees: any[], userMessage: string, history: { role: "user" | "assistant"; content: string }[]): Promise<{ employee: any; content: string }[]> {
-  return Promise.all(employees.slice(0, 2).map(async employee => ({ employee, content: await getSingleEmployeeResponse(employee, userMessage, history) })));
+export async function getCasualChatResponse(employees: any[], userMessage: string, history: { role: "user" | "assistant"; content: string }[], language: AIOutputLanguage = "zh"): Promise<{ employee: any; content: string }[]> {
+  return Promise.all(employees.slice(0, 2).map(async employee => ({ employee, content: await getSingleEmployeeResponse(employee, userMessage, history, language) })));
 }
 
 export function buildAgentSystemPrompt(agentType: string, language: AIOutputLanguage = "zh"): string {
