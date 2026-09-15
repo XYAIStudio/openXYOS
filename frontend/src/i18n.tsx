@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { systemMessages, type SystemMessageKey } from "./locales/system";
 
 export type Locale = "zh-CN" | "en";
 
@@ -8,6 +9,7 @@ type LocaleContextValue = {
   setLocale: (locale: Locale) => void;
   toggleLocale: () => void;
   t: (zh: string, en: string) => string;
+  message: (key: SystemMessageKey) => string;
   formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
 };
@@ -55,6 +57,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocale,
     toggleLocale,
     t: (zh, en) => locale === "en" ? en : zh,
+    message: (key) => systemMessages[locale][key],
     formatDate: (input, options) => new Intl.DateTimeFormat(locale, options).format(new Date(input)),
     formatNumber: (input, options) => new Intl.NumberFormat(locale, options).format(input),
   }), [locale]);
@@ -69,10 +72,10 @@ export function useLocale() {
 }
 
 export function LanguageToggle({ className = "" }: { className?: string }) {
-  const { locale, setLocale } = useLocale();
+  const { locale, setLocale, message } = useLocale();
   return <label className={"language-select " + className}>
-    <span className="sr-only">Language</span>
-    <select value={locale} onChange={event => setLocale(event.target.value as Locale)} aria-label="Language">
+    <span className="sr-only">{message("common.language")}</span>
+    <select value={locale} onChange={event => setLocale(event.target.value as Locale)} aria-label={message("common.language")}>
       <option value="zh-CN">中文</option>
       <option value="en">English</option>
     </select>

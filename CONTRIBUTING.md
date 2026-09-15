@@ -21,6 +21,7 @@ Before submitting a pull request, run:
 
 ```bash
 npm run lint
+npm run i18n:check
 npm run typecheck
 npm test
 npm run verify:open-source
@@ -28,6 +29,8 @@ npm run build
 ```
 
 Add or update tests for changed behavior. Document configuration changes in `.env.example` and README files. Security-sensitive changes must include negative tests for unauthorized, cross-tenant, and malformed requests.
+
+For any user-visible workspace change, add Chinese and English copy in the same pull request and follow [the bilingual release contract](docs/i18n/BILINGUAL_RELEASE.md). New AI endpoints must also prove that their output follows `Accept-Language`.
 
 ## Commit and pull-request expectations
 

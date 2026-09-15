@@ -20,7 +20,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuthStore();
   const { dark, toggle } = useThemeStore();
   const navigate = useNavigate();
-  const { isEnglish, t } = useLocale();
+  const { message } = useLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pinned, setPinned] = useState<PinnedAnnouncement[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -55,7 +55,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
       <div className="flex items-center gap-3 shrink-0">
         <button onClick={handleMobileToggle}
           className="md:hidden p-1.5 rounded text-text-muted hover:text-text hover:bg-bg transition-colors"
-          title={mobileOpen ? (isEnglish ? "Close menu" : "关闭菜单") : (isEnglish ? "Open menu" : "打开菜单")}>
+          title={mobileOpen ? message("header.closeMenu") : message("header.openMenu")}>
           {mobileOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
         <span className="text-[11px] text-text-muted font-mono tracking-wide shrink-0">openXYOS</span>
@@ -66,7 +66,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         <div
           className="hidden md:flex flex-1 mx-4 overflow-hidden items-center h-7 rounded-full bg-bg border border-border px-3 cursor-pointer hover:border-primary-light transition-colors"
           onClick={() => navigate(`/announcements/${pinned[currentIdx].id}`)}
-          title={isEnglish ? "View announcement" : "点击查看公告详情"}
+          title={message("header.viewAnnouncement")}
         >
           <Megaphone size={12} className="text-primary shrink-0 mr-2" />
           <div className="relative flex-1 h-4 overflow-hidden">
@@ -91,15 +91,15 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         {user && (
           <>
             <span className="hidden sm:inline text-[11px] text-text-muted truncate max-w-[80px]">{user.nickname}</span>
-            <button onClick={logout} className="p-1.5 text-text-muted hover:text-danger hover:bg-bg rounded transition-colors" title={isEnglish ? "Sign out" : "退出登录"}>
+            <button onClick={logout} className="p-1.5 text-text-muted hover:text-danger hover:bg-bg rounded transition-colors" title={message("header.signOut")}>
               <LogOut size={14} />
             </button>
-            <button onClick={toggle} className="p-1.5 text-text-muted hover:text-text hover:bg-bg rounded transition-colors" title={dark ? (isEnglish ? "Use light mode" : "切换到亮色模式") : (isEnglish ? "Use dark mode" : "切换到深色模式")}>
+            <button onClick={toggle} className="p-1.5 text-text-muted hover:text-text hover:bg-bg rounded transition-colors" title={dark ? message("header.useLightMode") : message("header.useDarkMode")}>
               {dark ? <Sun size={14} /> : <Moon size={14} />}
             </button>
             <NotificationPanel />
             <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-text-muted px-2 py-1 rounded bg-bg">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />{t("AI 就绪", "AI ready")}
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulse_2s_infinite]" />{message("header.aiReady")}
             </div>
           </>
         )}

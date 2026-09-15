@@ -8,7 +8,7 @@ import { useLocale } from "../i18n";
  * user can refresh out of a stale app shell at a safe moment.
  */
 export default function PwaUpdatePrompt() {
-  const { t } = useLocale();
+  const { message } = useLocale();
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -63,9 +63,9 @@ export default function PwaUpdatePrompt() {
   return (
     <aside className="pwa-update-prompt" role="status" aria-live="polite">
       <RefreshCw size={18} aria-hidden="true" />
-      <p>{t("发现新版本，刷新后即可使用最新功能。", "A new version is ready. Refresh to use the latest features.")}</p>
-      <button className="pwa-update-refresh" onClick={refresh}>{t("立即刷新", "Refresh now")}</button>
-      <button className="pwa-update-dismiss" onClick={() => setDismissed(true)} aria-label={t("稍后更新", "Update later")}>
+      <p>{message("pwa.updateReady")}</p>
+      <button className="pwa-update-refresh" onClick={refresh}>{message("common.refreshNow")}</button>
+      <button className="pwa-update-dismiss" onClick={() => setDismissed(true)} aria-label={message("common.updateLater")}>
         <X size={17} aria-hidden="true" />
       </button>
     </aside>
