@@ -4,6 +4,7 @@ import { ListTodo, Plus, RefreshCw, Search, Filter, ChevronDown, Bot, MessageSqu
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
 import { useLocale } from "../i18n";
+import { localizePublicDemoTaskTitle } from "../demo-content";
 
 interface Task {
   id: number; title: string; status: string; priority: string;
@@ -21,7 +22,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export default function TasksPage() {
   const navigate = useNavigate();
-  const { t } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +195,7 @@ export default function TasksPage() {
                   {task.priority === "critical" ? "!!" : task.priority === "high" ? "!" : ""}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm text-text truncate block">{task.title}</span>
+                  <span className="text-sm text-text truncate block">{localizePublicDemoTaskTitle(task.title, isEnglish)}</span>
                   <div className="flex items-center gap-3 mt-1">
                     {(task.subtask_count ?? 0) > 0 && (
                       <span className="flex items-center gap-1 text-[10px] text-text-muted">

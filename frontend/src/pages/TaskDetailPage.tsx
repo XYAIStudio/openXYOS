@@ -7,6 +7,7 @@ import {
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
 import { useLocale } from "../i18n";
+import { localizePublicDemoTaskTitle } from "../demo-content";
 
 interface Subtask {
   id: number; title: string; completed: number; sort_order: number;
@@ -42,7 +43,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useLocale();
+  const { t, isEnglish } = useLocale();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newSubtask, setNewSubtask] = useState("");
@@ -152,6 +153,7 @@ export default function TaskDetailPage() {
 
   const completedSubtasks = task.subtasks.filter(s => s.completed).length;
   const totalSubtasks = task.subtasks.length;
+  const displayTitle = localizePublicDemoTaskTitle(task.title, isEnglish);
 
   return (
     <div className="h-full flex flex-col">
@@ -222,7 +224,7 @@ export default function TaskDetailPage() {
                     {priorityLabel(task.priority)}
                   </span>
                 </div>
-                <h2 className="text-xl font-bold text-text mb-2">{task.title}</h2>
+                <h2 className="text-xl font-bold text-text mb-2">{displayTitle}</h2>
                 {task.description && (
                   <p className="text-sm text-text-secondary leading-relaxed">{task.description}</p>
                 )}
