@@ -7,15 +7,16 @@ import { authenticate, AuthRequest } from "../middleware";
 import { LTSProvider, getAuthProvider } from "../services/auth-provider";
 import { dbGet, dbRun } from "../db";
 import bcrypt from "bcryptjs";
-import { localizedError } from "../utils/locale";
+import { localizedApiError } from "../utils/locale";
 
-function authError(req: Parameters<typeof localizedError>[0], message: string): string {
-  const known: Record<string, string> = {
-    "邮箱或密码错误": "Invalid email or password",
-    "租户已被暂停": "This tenant is suspended",
-    "账号已被禁用": "This account is disabled",
-  };
-  return localizedError(req, message, known[message] || "Authentication failed");
+function authErrorCode(code?: string) {
+  const known = {
+    INVALID_CREDENTIALS: "AUTH_INVALID_CREDENTIALS",
+    TENANT_SUSPENDED: "AUTH_TENANT_SUSPENDED",
+    ACCOUNT_LOCKED: "AUTH_ACCOUNT_DISABLED",
+    TOKEN_EXPIRED: "AUTH_TOKEN_EXPIRED",
+  } as const;
+  return known[code as keyof typeof known] || "AUTH_INVALID_CREDENTIALS";
 }
 
 export const authRoutes = Router();
@@ -24,19 +25,19 @@ export const authRoutes = Router();
 authRoutes.post("/register", async (req, res) => {
   try {
     if (process.env.ALLOW_PUBLIC_REGISTRATION !== "true") {
-      return res.status(403).json({ success: false, error: localizedError(req, "公开注册未启用", "Public registration is disabled") });
+      return res.status(403).json(localizedApiError(req, "AUTH_REGISTRATION_DISABLED"));
     }
     const { email, password, nickname } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ success: false, error: localizedError(req, "邮箱和密码必填", "Email and password are required") });
+      return res.status(400).json(localizedApiError(req, "AUTH_CREDENTIALS_REQUIRED"));
     }
     if (password.length < 6) {
-      return res.status(400).json({ success: false, error: localizedError(req, "密码至少6位", "Password must be at least 6 characters") });
+      return res.status(400).json(localizedApiError(req, "AUTH_PASSWORD_TOO_SHORT"));
     }
 
     const existing = dbGet("SELECT id FROM users WHERE email = ?", [email]);
     if (existing) {
-      return res.status(409).json({ success: false, error: localizedError(req, "该邮箱已注册", "This email is already registered") });
+      return res.status(409).json(localizedApiError(req, "AUTH_EMAIL_REGISTERED"));
     }
 
     const hash = bcrypt.hashSync(password, 10);
@@ -49,12 +50,12 @@ authRoutes.post("/register", async (req, res) => {
     const provider = getAuthProvider();
     const result = await provider.authenticate({ email, password });
     if (!result.success) {
-      return res.status(500).json({ success: false, error: localizedError(req, "注册成功但登录失败，请手动登录", "Registration succeeded, but automatic sign-in failed. Please sign in manually.") });
+      return res.status(500).json(localizedApiError(req, "AUTH_AUTO_SIGN_IN_FAILED"));
     }
 
     res.json({ success: true, data: { user: result.user, tokens: result.tokens } });
   } catch {
-    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
+    res.status(500).json(localizedApiError(req, "AUTH_SERVICE_UNAVAILABLE"));
   }
 });
 
@@ -67,7 +68,7 @@ authRoutes.post("/login", async (req, res) => {
 
     if (!result.success) {
       const status = result.code === "TENANT_SUSPENDED" ? 403 : 401;
-      return res.status(status).json({ success: false, error: authError(req, result.error || "") });
+      return res.status(status).json(localizedApiError(req, authErrorCode(result.code)));
     }
 
     res.json({
@@ -78,7 +79,7 @@ authRoutes.post("/login", async (req, res) => {
       },
     });
   } catch {
-    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
+    res.status(500).json(localizedApiError(req, "AUTH_SERVICE_UNAVAILABLE"));
   }
 });
 
@@ -87,26 +88,26 @@ authRoutes.post("/refresh", async (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
-      return res.status(400).json({ success: false, error: localizedError(req, "refreshToken 必填", "refreshToken is required") });
+      return res.status(400).json(localizedApiError(req, "AUTH_REFRESH_TOKEN_REQUIRED"));
     }
 
     const provider = getAuthProvider();
     const result = await provider.refreshAccessToken(refreshToken);
 
     if (!result.success) {
-      return res.status(401).json({ success: false, error: authError(req, result.error || "") });
+      return res.status(401).json(localizedApiError(req, authErrorCode(result.code)));
     }
 
     res.json({ success: true, data: { tokens: result.tokens } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
+    res.status(500).json(localizedApiError(req, "AUTH_SERVICE_UNAVAILABLE"));
   }
 });
 
 // GET /me — 当前用户信息
 authRoutes.get("/me", authenticate, (req: AuthRequest, res) => {
   const user = dbGet("SELECT id, email, nickname, role, tenant_id FROM users WHERE id = ?", [req.user!.id]);
-  if (!user) return res.status(404).json({ success: false, error: localizedError(req, "用户不存在", "User not found") });
+  if (!user) return res.status(404).json(localizedApiError(req, "AUTH_USER_NOT_FOUND"));
   res.json({ success: true, data: user });
 });
 
@@ -117,6 +118,6 @@ authRoutes.post("/revoke", authenticate, async (req: AuthRequest, res) => {
     await provider.revokeUserTokens(req.user!.id);
     res.json({ success: true, message: "令牌已撤销" });
   } catch {
-    res.status(500).json({ success: false, error: localizedError(req, "认证服务暂时不可用，请稍后重试", "Authentication service is temporarily unavailable. Please try again") });
+    res.status(500).json(localizedApiError(req, "AUTH_SERVICE_UNAVAILABLE"));
   }
 });

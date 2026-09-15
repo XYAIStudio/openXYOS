@@ -9,7 +9,7 @@ type LocaleContextValue = {
   setLocale: (locale: Locale) => void;
   toggleLocale: () => void;
   t: (zh: string, en: string) => string;
-  message: (key: SystemMessageKey) => string;
+  message: (key: SystemMessageKey, values?: Record<string, string | number>) => string;
   formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
 };
@@ -57,7 +57,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocale,
     toggleLocale,
     t: (zh, en) => locale === "en" ? en : zh,
-    message: (key) => systemMessages[locale][key],
+    message: (key, values) => {
+      const template = systemMessages[locale][key];
+      return values ? template.replace(/\{(\w+)\}/g, (_, name) => String(values[name] ?? `{${name}}`)) : template;
+    },
     formatDate: (input, options) => new Intl.DateTimeFormat(locale, options).format(new Date(input)),
     formatNumber: (input, options) => new Intl.NumberFormat(locale, options).format(input),
   }), [locale]);

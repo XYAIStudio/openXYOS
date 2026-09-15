@@ -16,6 +16,21 @@ export const zhCN = {
   "header.useLightMode": "切换到亮色模式",
   "header.useDarkMode": "切换到深色模式",
   "header.aiReady": "AI 就绪",
+  "notification.title": "通知",
+  "notification.markAllRead": "全部已读",
+  "notification.empty": "暂无通知",
+  "notification.justNow": "刚刚",
+  "notification.minutesAgo": "{count}分钟前",
+  "notification.hoursAgo": "{count}小时前",
+  "notification.daysAgo": "{count}天前",
+  "module.loadFailed": "加载模块失败",
+  "module.saveFailed": "保存模块设置失败",
+  "module.retry": "重试",
+  "module.save": "保存",
+  "module.cancel": "取消",
+  "module.editDisplayName": "编辑显示名称",
+  "module.enabled": "已开启",
+  "module.disabled": "已关闭",
 } as const;
 
 export const en = {
@@ -32,6 +47,21 @@ export const en = {
   "header.useLightMode": "Use light mode",
   "header.useDarkMode": "Use dark mode",
   "header.aiReady": "AI ready",
+  "notification.title": "Notifications",
+  "notification.markAllRead": "Mark all read",
+  "notification.empty": "No notifications",
+  "notification.justNow": "Just now",
+  "notification.minutesAgo": "{count} min ago",
+  "notification.hoursAgo": "{count} hr ago",
+  "notification.daysAgo": "{count} days ago",
+  "module.loadFailed": "Unable to load modules",
+  "module.saveFailed": "Unable to save module settings",
+  "module.retry": "Retry",
+  "module.save": "Save",
+  "module.cancel": "Cancel",
+  "module.editDisplayName": "Edit display name",
+  "module.enabled": "Enabled",
+  "module.disabled": "Disabled",
 } as const;
 
 export const systemMessages = { "zh-CN": zhCN, en } as const;

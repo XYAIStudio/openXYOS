@@ -28,7 +28,7 @@ const COLORS: Record<string, string> = {
 };
 
 export default function NotificationPanel() {
-  const { isEnglish, t } = useLocale();
+  const { message } = useLocale();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -81,11 +81,11 @@ export default function NotificationPanel() {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t("刚刚", "Just now");
-    if (minutes < 60) return isEnglish ? `${minutes} min ago` : `${minutes}分钟前`;
+    if (minutes < 1) return message("notification.justNow");
+    if (minutes < 60) return message("notification.minutesAgo", { count: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return isEnglish ? `${hours} hr ago` : `${hours}小时前`;
-    return isEnglish ? `${Math.floor(hours / 24)} days ago` : `${Math.floor(hours / 24)}天前`;
+    if (hours < 24) return message("notification.hoursAgo", { count: hours });
+    return message("notification.daysAgo", { count: Math.floor(hours / 24) });
   };
 
   return (
@@ -105,14 +105,14 @@ export default function NotificationPanel() {
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 max-w-[90vw] bg-bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-text">{t("通知", "Notifications")}</h3>
+            <h3 className="text-sm font-semibold text-text">{message("notification.title")}</h3>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
                   className="text-[10px] text-primary hover:underline flex items-center gap-1"
                 >
-                  <CheckCheck size={12} /> {t("全部已读", "Mark all read")}
+                  <CheckCheck size={12} /> {message("notification.markAllRead")}
                 </button>
               )}
               <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text">
@@ -124,12 +124,12 @@ export default function NotificationPanel() {
           <div className="max-h-96 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8 text-text-muted text-xs">
-                {t("加载中...", "Loading...")}
+                {message("common.loading")}
               </div>
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-text-muted">
                 <Bell size={24} className="mb-2 opacity-30" />
-                <p className="text-xs">{t("暂无通知", "No notifications")}</p>
+                <p className="text-xs">{message("notification.empty")}</p>
               </div>
             ) : (
               notifications.map(n => {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest, requireAdmin } from "../middleware";
 import { isLockedModule, isOpenXyosModuleKey, OPENXYOS_MODULES } from "../open-module-catalog";
-import { isEnglishRequest, localizedError } from "../utils/locale";
+import { isEnglishRequest, localizedApiError, localizedError } from "../utils/locale";
 
 export const openModuleSettingsRoutes = Router();
 openModuleSettingsRoutes.use(authenticate);
@@ -42,21 +42,21 @@ function readModules(tenantId: number, english = false) {
 openModuleSettingsRoutes.get("/", (req: AuthRequest, res) => {
   try {
     const tenantId = resolveTenantId(req, req.query.tenant_id);
-    if (!tenantId) return res.status(403).json({ success:false, error:openModuleSettingsError(req, "无权查看该租户的模块设置", "You do not have permission to view this tenant's module settings") });
+    if (!tenantId) return res.status(403).json(localizedApiError(req, "MODULE_VIEW_DENIED"));
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
     if (!tenant) return res.status(404).json({ success:false, error:openModuleSettingsError(req, "租户不存在", "Tenant not found") });
     res.json({ success:true, data:{ tenant, modules:readModules(tenantId, isEnglishRequest(req)) } });
-  } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
+  } catch { res.status(500).json(localizedApiError(req, "MODULE_SERVICE_UNAVAILABLE")); }
 });
 
 openModuleSettingsRoutes.put("/", requireAdmin, (req: AuthRequest, res) => {
   try {
     const tenantId = resolveTenantId(req, req.body?.tenant_id);
-    if (!tenantId) return res.status(403).json({ success:false, error:openModuleSettingsError(req, "无权修改该租户的模块设置", "You do not have permission to change this tenant's module settings") });
+    if (!tenantId) return res.status(403).json(localizedApiError(req, "MODULE_CHANGE_DENIED"));
     const updates = req.body?.updates;
     const labels = req.body?.labels;
     if ((!updates || typeof updates !== "object" || Array.isArray(updates)) && (!labels || typeof labels !== "object" || Array.isArray(labels))) {
-      return res.status(400).json({ success:false, error:openModuleSettingsError(req, "请提交 updates 或 labels", "Provide updates or labels") });
+      return res.status(400).json(localizedApiError(req, "MODULE_INPUT_REQUIRED"));
     }
     ensureSchema();
     for (const [key,value] of Object.entries(updates || {})) {
@@ -80,5 +80,5 @@ openModuleSettingsRoutes.put("/", requireAdmin, (req: AuthRequest, res) => {
     }
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
     res.json({ success:true, data:{ tenant, modules:readModules(tenantId, isEnglishRequest(req)) } });
-  } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
+  } catch { res.status(500).json(localizedApiError(req, "MODULE_SERVICE_UNAVAILABLE")); }
 });
