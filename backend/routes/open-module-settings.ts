@@ -2,7 +2,7 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest, requireAdmin } from "../middleware";
 import { isLockedModule, isOpenXyosModuleKey, OPENXYOS_MODULES } from "../open-module-catalog";
-import { localizedError } from "../utils/locale";
+import { isEnglishRequest, localizedError } from "../utils/locale";
 
 export const openModuleSettingsRoutes = Router();
 openModuleSettingsRoutes.use(authenticate);
@@ -22,13 +22,20 @@ function resolveTenantId(req: AuthRequest, requested: unknown): number | null {
   if (id !== req.user!.tenant_id && req.user!.role !== "super_admin") return null;
   return id;
 }
-function readModules(tenantId: number) {
+function readModules(tenantId: number, english = false) {
   ensureSchema();
   const rows = dbAll("SELECT module_key, enabled, display_name FROM tenant_module_settings WHERE tenant_id = ?", [tenantId]) as Array<{module_key:string;enabled:number;display_name:string|null}>;
   const stored = new Map(rows.map(row => [row.module_key, row]));
   return OPENXYOS_MODULES.map(module => {
     const setting = stored.get(module.key);
-    return { ...module, defaultLabel: module.label, label: setting?.display_name?.trim() || module.label, enabled: module.locked ? true : setting?.enabled !== 0 };
+    const defaultLabel = english ? module.labelEn : module.label;
+    return {
+      ...module,
+      defaultLabel,
+      label: setting?.display_name?.trim() || defaultLabel,
+      description: english ? module.descriptionEn : module.description,
+      enabled: module.locked ? true : setting?.enabled !== 0,
+    };
   });
 }
 
@@ -38,7 +45,7 @@ openModuleSettingsRoutes.get("/", (req: AuthRequest, res) => {
     if (!tenantId) return res.status(403).json({ success:false, error:openModuleSettingsError(req, "无权查看该租户的模块设置", "You do not have permission to view this tenant's module settings") });
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
     if (!tenant) return res.status(404).json({ success:false, error:openModuleSettingsError(req, "租户不存在", "Tenant not found") });
-    res.json({ success:true, data:{ tenant, modules:readModules(tenantId) } });
+    res.json({ success:true, data:{ tenant, modules:readModules(tenantId, isEnglishRequest(req)) } });
   } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
 });
 
@@ -72,6 +79,6 @@ openModuleSettingsRoutes.put("/", requireAdmin, (req: AuthRequest, res) => {
         [tenantId,key,value.trim(),req.user!.id]);
     }
     const tenant = dbGet("SELECT id, name FROM tenants WHERE id = ?", [tenantId]);
-    res.json({ success:true, data:{ tenant, modules:readModules(tenantId) } });
+    res.json({ success:true, data:{ tenant, modules:readModules(tenantId, isEnglishRequest(req)) } });
   } catch { res.status(500).json({ success:false, error:openModuleSettingsError(req, "模块设置服务暂时不可用，请稍后重试", "Module settings service is temporarily unavailable. Please try again") }); }
 });

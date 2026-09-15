@@ -51,6 +51,16 @@ async function main() {
     const initialBody = await initial.json() as any;
     assert(initialBody.data.modules.every((module: any) => module.enabled === true));
 
+    const englishInitial = await request(tokens.user, "/api/module-settings", {
+      headers: { "Accept-Language": "en" },
+    });
+    assert.equal(englishInitial.status, 200);
+    const englishInitialBody = await englishInitial.json() as any;
+    const englishWorkspace = englishInitialBody.data.modules.find((module: any) => module.key === "workspace");
+    assert.equal(englishWorkspace.label, "Workspace");
+    assert.equal(englishWorkspace.defaultLabel, "Workspace");
+    assert.equal(englishWorkspace.description, "Organization overview and action hub");
+
     const saved = await request(tokens.admin, "/api/module-settings", {
       method: "PUT",
       body: JSON.stringify({ updates: { tasks: false, knowledge: false }, labels: { employees: "协同成员" } }),
@@ -88,6 +98,22 @@ async function main() {
       body: JSON.stringify({ updates: { unknown_module: false } }),
     });
     assert.equal(invalid.status, 400);
+
+    const invalidEnglish = await request(tokens.admin, "/api/module-settings", {
+      method: "PUT",
+      headers: { "Accept-Language": "en" },
+      body: JSON.stringify({ updates: { unknown_module: false } }),
+    });
+    assert.equal(invalidEnglish.status, 400);
+    assert.equal((await invalidEnglish.json() as any).error, "Unknown module: unknown_module");
+
+    const lockedEnglish = await request(tokens.admin, "/api/module-settings", {
+      method: "PUT",
+      headers: { "Accept-Language": "en" },
+      body: JSON.stringify({ updates: { workspace: false } }),
+    });
+    assert.equal(lockedEnglish.status, 400);
+    assert.equal((await lockedEnglish.json() as any).error, "workspace is a foundation module and cannot be disabled");
 
     console.log("tenant module settings integration tests passed");
   } finally {
