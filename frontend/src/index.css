@@ -26,6 +26,34 @@
   --radius-lg: 8px;
 }
 
+.pwa-update-prompt {
+  position: fixed;
+  z-index: 1000;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(460px, calc(100vw - 32px));
+  padding: 12px 12px 12px 14px;
+  color: #ecfdf5;
+  background: #0d211a;
+  border: 1px solid rgba(52, 211, 153, .55);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .28);
+}
+
+.pwa-update-prompt > svg { color: #6ee7b7; flex: 0 0 auto; }
+.pwa-update-prompt p { margin: 0; font-size: 13px; line-height: 1.45; }
+.pwa-update-prompt button { border: 0; cursor: pointer; font: inherit; }
+.pwa-update-refresh { flex: 0 0 auto; padding: 7px 10px; color: #052e20; background: #6ee7b7; border-radius: 7px !important; font-weight: 650 !important; }
+.pwa-update-dismiss { display: grid; flex: 0 0 auto; width: 28px; height: 28px; color: #a7c7b8; background: transparent; place-items: center; border-radius: 6px !important; }
+.pwa-update-dismiss:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+
+@media (max-width: 640px) {
+  .pwa-update-prompt { right: 12px; bottom: 12px; left: 12px; max-width: none; }
+}
+
 .dark {
   --primary: #34D399;
   --primary-hover: #10B981;

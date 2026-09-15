@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       // The app registers the worker in main.tsx so it can explicitly bypass
       // HTTP caches during update checks.
       injectRegister: false,
@@ -28,6 +28,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Existing public clients predate the in-app update prompt. Activate
+        // this bridge worker so they can leave the legacy navigation cache;
+        // PwaUpdatePrompt deliberately never reloads an active page by itself.
         skipWaiting: true,
         clientsClaim: true,
         // Nginx is the authoritative SPA fallback. Keeping an old index.html

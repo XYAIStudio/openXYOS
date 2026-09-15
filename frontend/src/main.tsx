@@ -4,22 +4,12 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./OpenApp";
 import { LocaleProvider } from "./i18n";
+import PwaUpdatePrompt from "./components/PwaUpdatePrompt";
 import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000 } },
 });
-
-// PWA Service Worker 注册（WebView 环境安全降级）
-if ("serviceWorker" in navigator && window.location.protocol === "https:") {
-  navigator.serviceWorker
-    .register("/sw.js", { scope: "/", updateViaCache: "none" })
-    .then(async (reg) => {
-      await reg.update();
-      console.log("[SW] Registered:", reg.scope);
-    })
-    .catch((e) => console.warn("[SW] Registration failed:", e.message));
-}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -27,6 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <LocaleProvider>
         <BrowserRouter>
           <App />
+          <PwaUpdatePrompt />
         </BrowserRouter>
       </LocaleProvider>
     </QueryClientProvider>
