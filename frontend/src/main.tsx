@@ -13,8 +13,11 @@ const queryClient = new QueryClient({
 // PWA Service Worker 注册（WebView 环境安全降级）
 if ("serviceWorker" in navigator && window.location.protocol === "https:") {
   navigator.serviceWorker
-    .register("/sw.js", { scope: "/" })
-    .then((reg) => console.log("[SW] Registered:", reg.scope))
+    .register("/sw.js", { scope: "/", updateViaCache: "none" })
+    .then(async (reg) => {
+      await reg.update();
+      console.log("[SW] Registered:", reg.scope);
+    })
     .catch((e) => console.warn("[SW] Registration failed:", e.message));
 }
 

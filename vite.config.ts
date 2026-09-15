@@ -11,6 +11,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      // The app registers the worker in main.tsx so it can explicitly bypass
+      // HTTP caches during update checks.
+      injectRegister: false,
       manifest: {
         name: "openXYOS · 开源人机组织操作系统",
         short_name: "openXYOS",
@@ -27,6 +30,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         skipWaiting: true,
         clientsClaim: true,
+        // Nginx is the authoritative SPA fallback. Keeping an old index.html
+        // in Workbox navigation fallback made clients appear one release behind.
+        navigateFallback: null,
       },
     }),
   ],
