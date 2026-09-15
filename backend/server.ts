@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { localizedError } from "./utils/locale";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -117,7 +118,7 @@ app.use(cookieParser(cookieSecret));
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: "请求过于频繁，请稍后再试" },
+    handler: (req, res) => res.status(429).json({ success: false, error: localizedError(req, "请求过于频繁，请稍后再试", "Too many requests. Please try again shortly.") }),
   });
   app.use("/api", globalLimiter);
 
@@ -127,7 +128,7 @@ app.use(cookieParser(cookieSecret));
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: "AI请求频率超限，请稍后再试" },
+    handler: (req, res) => res.status(429).json({ success: false, error: localizedError(req, "AI请求频率超限，请稍后再试", "AI request limit reached. Please try again shortly.") }),
   });
   app.use("/api/ai", aiLimiter);
 
@@ -137,7 +138,7 @@ app.use(cookieParser(cookieSecret));
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: "登录尝试过多，请稍后再试" },
+    handler: (req, res) => res.status(429).json({ success: false, error: localizedError(req, "登录尝试过多，请稍后再试", "Too many sign-in attempts. Please try again shortly.") }),
   });
   app.use("/api/auth/login", authLimiter);
 

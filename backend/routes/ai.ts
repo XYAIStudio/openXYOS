@@ -4,12 +4,14 @@ import { getAgentResponse, decomposeTask, generateSummary, analyzeSentiment, bui
 import { runReAct } from "../services/react-agent";
 import { FEATURE_FLAGS } from "../config/features";
 import { dbAll, dbGet, dbRun } from "../db";
+import { localizedError } from "../utils/locale";
 
 // 统一错误脱敏
-function safeErr(err: any): string {
-  if (typeof err === "string") return "服务器内部错误";
-  return "服务器内部错误";
+function safeErr(req: AuthRequest, _err: unknown): string {
+  return localizedError(req, "服务器内部错误，请稍后重试", "An internal server error occurred. Please try again.");
 }
+
+const aiError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
 
 /** SSE token 安全写入：转义可能破坏协议的内容 */
 function sseWrite(res: any, data: Record<string, unknown>): void {
@@ -31,7 +33,7 @@ aiRoutes.use(authenticate);
 aiRoutes.post("/chat", async (req: AuthRequest, res) => {
   try {
     const { message, agentType, chatId, context } = req.body;
-    if (!message) return res.status(400).json({ success: false, error: "消息内容必填" });
+    if (!message) return res.status(400).json({ success: false, error: aiError(req, "消息内容必填", "Message content is required") });
 
     const sanitizedMsg = sanitizeLLMInput(String(message));
     const sanitizedCtx = context ? sanitizeLLMInput(String(context)) : undefined;
@@ -67,7 +69,7 @@ aiRoutes.post("/chat", async (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
@@ -78,7 +80,7 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
   try {
     const { message, agentType, chatId, context } = req.body;
     if (!message) {
-      res.status(400).json({ success: false, error: "消息内容必填" });
+      res.status(400).json({ success: false, error: aiError(req, "消息内容必填", "Message content is required") });
       return;
     }
 
@@ -128,16 +130,16 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
         res.end();
       },
       onError: (_error: Error) => {
-        sseWrite(res, { error: "服务器内部错误，请稍后重试" });
+        sseWrite(res, { error: aiError(req, "服务器内部错误，请稍后重试", "An internal server error occurred. Please try again.") });
         res.end();
       },
     });
 
   } catch (err: any) {
     if (!res.headersSent) {
-      res.status(500).json({ success: false, error: safeErr(err) });
+      res.status(500).json({ success: false, error: safeErr(req, err) });
     } else {
-      sseWrite(res, { error: safeErr(err) });
+      sseWrite(res, { error: safeErr(req, err) });
       res.end();
     }
   }
@@ -149,13 +151,13 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
 aiRoutes.post("/react", async (req: AuthRequest, res) => {
   try {
     const { message, chatId, maxRounds: rawMaxRounds, temperature } = req.body;
-    if (!message) return res.status(400).json({ success: false, error: "消息内容必填" });
+    if (!message) return res.status(400).json({ success: false, error: aiError(req, "消息内容必填", "Message content is required") });
 
     // 安全约束：maxRounds 上限 20，防止恶意或误操作导致无限推理
     const maxRounds = Math.min(Math.max(parseInt(rawMaxRounds) || 5, 1), MAX_REACT_ROUNDS);
 
     if (!FEATURE_FLAGS.ENABLE_REACT) {
-      return res.status(400).json({ success: false, error: "ReAct 推理模式未启用，请设置 ENABLE_REACT=true" });
+      return res.status(400).json({ success: false, error: aiError(req, "ReAct 推理模式未启用", "ReAct reasoning mode is not enabled") });
     }
 
     const history: { role: "user" | "assistant"; content: string }[] = [];
@@ -188,43 +190,43 @@ aiRoutes.post("/react", async (req: AuthRequest, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
 aiRoutes.post("/decompose-task", async (req: AuthRequest, res) => {
   try {
     const { title, description } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "任务标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: aiError(req, "任务标题必填", "Task title is required") });
 
     const subtasks = await decomposeTask(sanitizeLLMInput(title), sanitizeLLMInput(description || ""));
     res.json({ success: true, data: { subtasks, ai_generated: true } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
 aiRoutes.post("/summarize", async (req: AuthRequest, res) => {
   try {
     const { content } = req.body;
-    if (!content) return res.status(400).json({ success: false, error: "内容必填" });
+    if (!content) return res.status(400).json({ success: false, error: aiError(req, "内容必填", "Content is required") });
 
     const summary = await generateSummary(sanitizeLLMInput(String(content)));
     res.json({ success: true, data: { summary, ai_generated: true } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
 aiRoutes.post("/analyze", async (req: AuthRequest, res) => {
   try {
     const { text } = req.body;
-    if (!text) return res.status(400).json({ success: false, error: "文本必填" });
+    if (!text) return res.status(400).json({ success: false, error: aiError(req, "文本必填", "Text is required") });
 
     const result = await analyzeSentiment(sanitizeLLMInput(String(text)));
     res.json({ success: true, data: { ...result, ai_generated: true } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
@@ -236,7 +238,7 @@ aiRoutes.get("/agents", (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: agents });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
@@ -245,7 +247,7 @@ aiRoutes.post("/generate-report", async (req: AuthRequest, res) => {
     const { type, params } = req.body;
     // 白名单校验：仅允许预定义报告类型
     if (!ALLOWED_REPORT_TYPES.includes(type)) {
-      return res.status(400).json({ success: false, error: `不支持的报表类型: ${type}，支持的类型: ${ALLOWED_REPORT_TYPES.join(", ")}` });
+      return res.status(400).json({ success: false, error: aiError(req, `不支持的报表类型: ${type}`, `Unsupported report type: ${type}`) });
     }
     const tid = req.user!.tenant_id;
 
@@ -280,14 +282,14 @@ aiRoutes.post("/generate-report", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { report: response.content, ai_generated: true } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });
 
 aiRoutes.post("/suggest-assignee", async (req: AuthRequest, res) => {
   try {
     const { title, description } = req.body;
-    if (!title) return res.status(400).json({ success: false, error: "任务标题必填" });
+    if (!title) return res.status(400).json({ success: false, error: aiError(req, "任务标题必填", "Task title is required") });
 
     const employees = dbAll(
       `SELECT e.id, e.name, e.role, e.skills, e.agent_type,
@@ -310,6 +312,6 @@ aiRoutes.post("/suggest-assignee", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { suggested, ai_generated: true } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: safeErr(err) });
+    res.status(500).json({ success: false, error: safeErr(req, err) });
   }
 });

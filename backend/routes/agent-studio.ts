@@ -37,6 +37,7 @@ function ensureSchema() {
 }
 
 function agentError(req: AuthRequest, zh: string, en: string) { return localizedError(req, zh, en); }
+function agentServiceError(req: AuthRequest) { return agentError(req, "智能体定制服务暂时不可用，请稍后重试", "Agent customization service is temporarily unavailable. Please try again."); }
 
 function cleanText(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -56,7 +57,7 @@ agentStudioRoutes.get("/references", (req: AuthRequest, res) => {
     );
     res.json({ success: true, data: files });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: agentServiceError(req) });
   }
 });
 
@@ -81,7 +82,7 @@ agentStudioRoutes.post("/references", referenceUpload.single("file"), async (req
       extractedText = await extractText(storedPath, extension);
     } catch (parseError: any) {
       fs.rmSync(storedPath, { force: true });
-      return res.status(422).json({ success: false, error: agentError(req, `资料无法解析：${parseError.message}`, `The reference file could not be parsed: ${parseError.message}`) });
+      return res.status(422).json({ success: false, error: agentError(req, "资料无法解析", "The reference file could not be parsed") });
     }
     if (!extractedText) {
       fs.rmSync(storedPath, { force: true });
@@ -93,7 +94,7 @@ agentStudioRoutes.post("/references", referenceUpload.single("file"), async (req
     );
     res.json({ success: true, data: { id: inserted.lastInsertRowid, name: path.basename(req.file.originalname), size: req.file.size, scan: scan.verdict } });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: agentServiceError(req) });
   }
 });
 
@@ -178,6 +179,6 @@ agentStudioRoutes.post("/generate", (req: AuthRequest, res) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: agentServiceError(req) });
   }
 });
