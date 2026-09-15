@@ -34,7 +34,10 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   try {
     const result = await getAuthProvider().validateAccessToken(authHeader.slice(7));
     if (!result.success || !result.user) {
-      return res.status(401).json({ success: false, error: result.error || localizedError(req, "登录已过期", "Your session has expired") });
+      const error = result.code === "ACCOUNT_LOCKED"
+        ? localizedError(req, "账户或租户已停用", "Your account or tenant is inactive")
+        : localizedError(req, "登录已过期", "Your session has expired");
+      return res.status(401).json({ success: false, error });
     }
     req.user = result.user;
     runWithRequestContext(

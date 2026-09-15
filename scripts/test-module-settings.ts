@@ -61,6 +61,16 @@ async function main() {
     assert.equal(englishWorkspace.defaultLabel, "Workspace");
     assert.equal(englishWorkspace.description, "Organization overview and action hub");
 
+    const expiredEnglish = await request("invalid.access.token", "/api/module-settings", {
+      headers: { "Accept-Language": "en" },
+    });
+    assert.equal(expiredEnglish.status, 401);
+    assert.equal((await expiredEnglish.json() as any).error, "Your session has expired");
+
+    const expiredChinese = await request("invalid.access.token", "/api/module-settings");
+    assert.equal(expiredChinese.status, 401);
+    assert.equal((await expiredChinese.json() as any).error, "登录已过期");
+
     const saved = await request(tokens.admin, "/api/module-settings", {
       method: "PUT",
       body: JSON.stringify({ updates: { tasks: false, knowledge: false }, labels: { employees: "协同成员" } }),
