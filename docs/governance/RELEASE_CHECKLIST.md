@@ -8,6 +8,7 @@
 - [ ] `LICENSE`、`NOTICE`、`SECURITY.md`、`CONTRIBUTING.md`、`TRADEMARKS.md` 与本治理目录齐全。
 - [ ] 所有第三方依赖、字体、图片、图标和示例素材的许可证可追溯。
 - [ ] 已生成 SBOM 与依赖漏洞报告，结果归档到私有发布档案。
+- [ ] 若使用静态前端与 Service Worker，已验证实际 Nginx 发布根目录而非仅父目录；`/`、`/index.html`、`/sw.js` 和 `/registerSW.js` 均设置为 `Cache-Control: no-cache, no-store, must-revalidate`，带内容哈希的静态资源仍可长期缓存。
 
 ## 权利人一次确认项
 
@@ -25,3 +26,4 @@
 - [ ] 创建不可变 Git Tag 与发行说明。
 - [ ] 发布 SHA-256、SBOM、已知限制和安全报告入口。
 - [ ] 公告明确：核心按 Apache-2.0 开放，商标、官方发行、认证与企业服务不随代码授权。
+- [ ] 从外网 HTTPS 复核最新 HTML 所引用的构建哈希、`/api/health`、中英文首页与一个登录后页面；必要时在已有 Service Worker 的浏览器中完成一次刷新验证更新已激活。
