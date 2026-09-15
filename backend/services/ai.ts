@@ -14,6 +14,14 @@ export interface AIResponse {
   model: string;
 }
 
+export type AIOutputLanguage = "zh" | "en";
+
+function languageInstruction(language: AIOutputLanguage): string {
+  return language === "en"
+    ? "Respond in clear, professional English. Keep required JSON keys and code fences unchanged."
+    : "请使用清晰、专业的简体中文回答；保留要求的 JSON 字段和代码块格式。";
+}
+
 export interface StreamCallbacks {
   onToken?: (token: string) => void;
   onComplete?: (fullContent: string) => void;
@@ -47,11 +55,11 @@ function endpoint(baseUrl: string): string {
   return `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 }
 
-export async function callLLM(messages: AIMessage[], temperature = 0.7, maxTokens = 1024): Promise<AIResponse> {
+export async function callLLM(messages: AIMessage[], temperature = 0.7, maxTokens = 1024, language: AIOutputLanguage = "zh"): Promise<AIResponse> {
   const { apiKey, baseUrl, model } = getLLMConfig();
-  if (!aiIsEnabled()) return { content: "[系统] AI 功能已被管理员关闭。", tokens_used: 0, model: "disabled" };
-  if (!apiKey || !baseUrl || !model) return { content: "[系统] 请先在系统设置中完成模型服务配置。", tokens_used: 0, model: "unconfigured" };
-  if (!assertModelEndpointAllowed(baseUrl)) return { content: "[系统] 当前网络策略不允许连接该模型服务。", tokens_used: 0, model: "blocked" };
+  if (!aiIsEnabled()) return { content: language === "en" ? "[System] AI has been disabled by an administrator." : "[系统] AI 功能已被管理员关闭。", tokens_used: 0, model: "disabled" };
+  if (!apiKey || !baseUrl || !model) return { content: language === "en" ? "[System] Configure a model provider in System settings before using AI." : "[系统] 请先在系统设置中完成模型服务配置。", tokens_used: 0, model: "unconfigured" };
+  if (!assertModelEndpointAllowed(baseUrl)) return { content: language === "en" ? "[System] The current network policy does not allow this model provider." : "[系统] 当前网络策略不允许连接该模型服务。", tokens_used: 0, model: "blocked" };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
@@ -62,22 +70,22 @@ export async function callLLM(messages: AIMessage[], temperature = 0.7, maxToken
       body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
       signal: controller.signal,
     });
-    if (!response.ok) return { content: "[系统] 模型服务暂时不可用，请稍后重试。", tokens_used: 0, model };
+    if (!response.ok) return { content: language === "en" ? "[System] The model service is temporarily unavailable. Please try again." : "[系统] 模型服务暂时不可用，请稍后重试。", tokens_used: 0, model };
     const data = await response.json() as any;
     return {
-      content: data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || "（模型未返回内容）",
+      content: data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || (language === "en" ? "(The model returned no content.)" : "（模型未返回内容）"),
       tokens_used: data.usage?.total_tokens || 0,
       model: data.model || model,
     };
   } catch (error: any) {
-    return { content: error?.name === "AbortError" ? "[系统] 模型服务响应超时。" : "[系统] 无法连接模型服务。", tokens_used: 0, model };
+    return { content: error?.name === "AbortError" ? (language === "en" ? "[System] The model service timed out." : "[系统] 模型服务响应超时。") : (language === "en" ? "[System] Unable to connect to the model service." : "[系统] 无法连接模型服务。"), tokens_used: 0, model };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-export async function callLLMStream(messages: AIMessage[], callbacks: StreamCallbacks, temperature = 0.7, maxTokens = 1024): Promise<void> {
-  const result = await callLLM(messages, temperature, maxTokens);
+export async function callLLMStream(messages: AIMessage[], callbacks: StreamCallbacks, temperature = 0.7, maxTokens = 1024, language: AIOutputLanguage = "zh"): Promise<void> {
+  const result = await callLLM(messages, temperature, maxTokens, language);
   if (result.model === "blocked" || result.model === "unconfigured" || result.model === "disabled") {
     callbacks.onError?.(new Error(result.content));
     return;
@@ -143,27 +151,33 @@ export async function getCasualChatResponse(employees: any[], userMessage: strin
   return Promise.all(employees.slice(0, 2).map(async employee => ({ employee, content: await getSingleEmployeeResponse(employee, userMessage, history) })));
 }
 
-export async function getAgentResponse(agentType: string, userMessage: string, chatHistory: { role: "user" | "assistant"; content: string }[], context?: string): Promise<AIResponse> {
+export function buildAgentSystemPrompt(agentType: string, language: AIOutputLanguage = "zh"): string {
   const template = AGENT_TEMPLATES[agentType];
+  const role = template?.role || "组织智能助手";
+  const description = template?.description || "请提供可靠、可执行的建议。";
+  return `${languageInstruction(language)}\n${language === "en" ? `You are an organizational intelligence assistant. Role reference: ${role}. Responsibilities: ${description}` : `你是${role}。${description}`}`;
+}
+
+export async function getAgentResponse(agentType: string, userMessage: string, chatHistory: { role: "user" | "assistant"; content: string }[], context?: string, language: AIOutputLanguage = "zh"): Promise<AIResponse> {
   return callLLM([
-    { role: "system", content: `你是${template?.role || "组织智能助手"}。${template?.description || "请提供可靠、可执行的建议。"}` },
+    { role: "system", content: buildAgentSystemPrompt(agentType, language) },
     ...(context ? [{ role: "system" as const, content: sanitizeLLMInput(context) }] : []),
     ...chatHistory.slice(-8),
     { role: "user", content: sanitizeLLMInput(userMessage) },
-  ], 0.7, 2_500);
+  ], 0.7, 2_500, language);
 }
 
-export async function decomposeTask(title: string, description: string): Promise<any[]> {
-  const result = await callLLM([{ role: "system", content: "将任务拆为 3 到 8 个可执行子任务。仅返回 JSON 数组，每项包含 title、description、priority。" }, { role: "user", content: `标题：${sanitizeLLMInput(title)}\n说明：${sanitizeLLMInput(description)}` }], 0.4, 1_000);
+export async function decomposeTask(title: string, description: string, language: AIOutputLanguage = "zh"): Promise<any[]> {
+  const result = await callLLM([{ role: "system", content: `${languageInstruction(language)} ${language === "en" ? "Break the task into 3 to 8 executable subtasks. Return only a JSON array; each item must contain title, description, and priority." : "将任务拆为 3 到 8 个可执行子任务。仅返回 JSON 数组，每项包含 title、description、priority。"}` }, { role: "user", content: language === "en" ? `Title: ${sanitizeLLMInput(title)}\nDescription: ${sanitizeLLMInput(description)}` : `标题：${sanitizeLLMInput(title)}\n说明：${sanitizeLLMInput(description)}` }], 0.4, 1_000, language);
   try { return JSON.parse(result.content.match(/\[[\s\S]*\]/)?.[0] || "[]"); } catch { return [{ title, description: result.content, priority: "medium" }]; }
 }
 
-export async function generateSummary(content: string): Promise<string> {
-  return (await callLLM([{ role: "system", content: "生成准确、简洁、结构化的中文摘要。" }, { role: "user", content: sanitizeLLMInput(content) }], 0.3, 1_000)).content;
+export async function generateSummary(content: string, language: AIOutputLanguage = "zh"): Promise<string> {
+  return (await callLLM([{ role: "system", content: language === "en" ? "Produce an accurate, concise, structured English summary." : "生成准确、简洁、结构化的中文摘要。" }, { role: "user", content: sanitizeLLMInput(content) }], 0.3, 1_000, language)).content;
 }
 
-export async function analyzeSentiment(text: string): Promise<{ sentiment: string; confidence: number; analysis: string }> {
-  const result = await callLLM([{ role: "system", content: "分析文本情感，只返回 JSON：sentiment、confidence、analysis。" }, { role: "user", content: sanitizeLLMInput(text) }], 0.2, 400);
+export async function analyzeSentiment(text: string, language: AIOutputLanguage = "zh"): Promise<{ sentiment: string; confidence: number; analysis: string }> {
+  const result = await callLLM([{ role: "system", content: language === "en" ? "Analyze sentiment. Return only JSON with sentiment, confidence, and analysis. Write analysis in English." : "分析文本情感，只返回 JSON：sentiment、confidence、analysis。" }, { role: "user", content: sanitizeLLMInput(text) }], 0.2, 400, language);
   try { return JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] || "{}"); } catch { return { sentiment: "neutral", confidence: 0, analysis: result.content }; }
 }
 

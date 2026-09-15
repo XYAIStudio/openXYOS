@@ -3,7 +3,7 @@
  * Thought → Action → Observation 循环
  * 支持多轮推理，最大轮次可配置
  */
-import { callLLM, AIMessage } from "./ai";
+import { callLLM, AIMessage, AIOutputLanguage } from "./ai";
 import { ToolRegistry, ToolContext } from "./tool-registry";
 import { dbRun } from "../db";
 import { FEATURE_FLAGS } from "../config/features";
@@ -17,6 +17,8 @@ export interface ReActConfig {
   toolTimeout?: number;
   /** 推理过程回调 */
   onRound?: (round: ReActRound) => void;
+  /** Final answer language selected by the workspace interface. */
+  outputLanguage?: AIOutputLanguage;
 }
 
 export interface ReActRound {
@@ -169,6 +171,7 @@ export async function runReAct(
     maxRounds = 5,
     temperature = 0.5,
     onRound,
+    outputLanguage = "zh",
   } = config;
 
   const rounds: ReActRound[] = [];
@@ -180,7 +183,8 @@ export async function runReAct(
   const toolsDescription = buildToolsDescription();
   const systemPrompt = REACT_SYSTEM_PROMPT
     .replace("{maxRounds}", String(maxRounds))
-    .replace("{toolsDescription}", toolsDescription);
+    .replace("{toolsDescription}", toolsDescription)
+    + (outputLanguage === "en" ? "\n\nWrite thought and final_answer content in professional English. Keep tool_call JSON keys and fenced markers unchanged." : "\n\n请使用简体中文输出思考与最终答案；保持 tool_call JSON 字段及代码围栏不变。");
 
   // 构建初始消息
   const messages: AIMessage[] = [
@@ -196,7 +200,7 @@ export async function runReAct(
     round++;
 
     // 调用 LLM
-    const llmResponse = await callLLM(messages, temperature, 1500);
+    const llmResponse = await callLLM(messages, temperature, 1500, outputLanguage);
     totalTokens += llmResponse.tokens_used;
 
     // 解析回复
@@ -266,9 +270,9 @@ export async function runReAct(
     // 强制要求 LLM 给出答案
     messages.push({
       role: "user",
-      content: "你已达到最大推理轮次。请基于目前已收集的所有信息，给出你的最佳答案（使用 final_answer 格式）。",
+      content: outputLanguage === "en" ? "You reached the maximum reasoning rounds. Based on the information collected, provide your best answer using the final_answer format." : "你已达到最大推理轮次。请基于目前已收集的所有信息，给出你的最佳答案（使用 final_answer 格式）。",
     });
-    const lastResponse = await callLLM(messages, 0.3, 800);
+    const lastResponse = await callLLM(messages, 0.3, 800, outputLanguage);
     totalTokens += lastResponse.tokens_used;
     finalAnswer = lastResponse.content;
 

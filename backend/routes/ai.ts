@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { authenticate, AuthRequest } from "../middleware";
-import { getAgentResponse, decomposeTask, generateSummary, analyzeSentiment, buildMessages, callLLM, callLLMStream, sanitizeLLMInput, AIMessage } from "../services/ai";
+import { getAgentResponse, decomposeTask, generateSummary, analyzeSentiment, buildAgentSystemPrompt, callLLM, callLLMStream, sanitizeLLMInput, AIMessage, AIOutputLanguage } from "../services/ai";
 import { runReAct } from "../services/react-agent";
 import { FEATURE_FLAGS } from "../config/features";
 import { dbAll, dbGet, dbRun } from "../db";
-import { localizedError } from "../utils/locale";
+import { isEnglishRequest, localizedError } from "../utils/locale";
 
 // 统一错误脱敏
 function safeErr(req: AuthRequest, _err: unknown): string {
@@ -12,6 +12,7 @@ function safeErr(req: AuthRequest, _err: unknown): string {
 }
 
 const aiError = (req: AuthRequest, zh: string, en: string) => localizedError(req, zh, en);
+const outputLanguage = (req: AuthRequest): AIOutputLanguage => isEnglishRequest(req) ? "en" : "zh";
 
 /** SSE token 安全写入：转义可能破坏协议的内容 */
 function sseWrite(res: any, data: Record<string, unknown>): void {
@@ -37,6 +38,7 @@ aiRoutes.post("/chat", async (req: AuthRequest, res) => {
 
     const sanitizedMsg = sanitizeLLMInput(String(message));
     const sanitizedCtx = context ? sanitizeLLMInput(String(context)) : undefined;
+    const language = outputLanguage(req);
 
     const history: any[] = [];
     if (chatId) {
@@ -56,7 +58,8 @@ aiRoutes.post("/chat", async (req: AuthRequest, res) => {
       agentType || "ceo",
       sanitizedMsg,
       history,
-      sanitizedCtx
+      sanitizedCtx,
+      language,
     );
 
     res.json({
@@ -86,7 +89,7 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
 
     if (!FEATURE_FLAGS.ENABLE_STREAMING) {
       // 降级：回退到非流式
-      const fallback = await getAgentResponse(agentType || "ceo", sanitizeLLMInput(String(message)), [], context ? sanitizeLLMInput(String(context)) : undefined);
+      const fallback = await getAgentResponse(agentType || "ceo", sanitizeLLMInput(String(message)), [], context ? sanitizeLLMInput(String(context)) : undefined, outputLanguage(req));
       res.json({ success: true, data: { content: fallback.content, ai_generated: true, streamed: false } });
       return;
     }
@@ -99,6 +102,7 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
 
     const sanitizedMsg = sanitizeLLMInput(String(message));
     const sanitizedCtx = context ? sanitizeLLMInput(String(context)) : undefined;
+    const language = outputLanguage(req);
 
     const history: { role: "user" | "assistant"; content: string }[] = [];
     if (chatId) {
@@ -116,10 +120,11 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
       { role: "user", content: sanitizedMsg },
     ];
 
-    // 如果是特定 Agent 类型，注入系统提示
-    // @ts-expect-error R0-P0-09: sanitizedCtx 传递为上下文字符串，非标准 chatHistory 数组
-    const systemMsg = buildMessages(agentType || "ceo", sanitizedMsg, sanitizedCtx);
-    const fullMessages = [...systemMsg.filter((m: AIMessage) => m.role === "system"), ...messages];
+    const fullMessages: AIMessage[] = [
+      { role: "system", content: buildAgentSystemPrompt(agentType || "ceo", language) },
+      ...(sanitizedCtx ? [{ role: "system" as const, content: sanitizedCtx }] : []),
+      ...messages,
+    ];
 
     await callLLMStream(fullMessages, {
       onToken: (token: string) => {
@@ -133,7 +138,7 @@ aiRoutes.post("/chat/stream", async (req: AuthRequest, res) => {
         sseWrite(res, { error: aiError(req, "服务器内部错误，请稍后重试", "An internal server error occurred. Please try again.") });
         res.end();
       },
-    });
+    }, 0.7, 2_500, language);
 
   } catch (err: any) {
     if (!res.headersSent) {
@@ -174,7 +179,7 @@ aiRoutes.post("/react", async (req: AuthRequest, res) => {
     const result = await runReAct(
       sanitizeLLMInput(String(message)),
       history,
-      { maxRounds, temperature: temperature || 0.5 },
+      { maxRounds, temperature: temperature || 0.5, outputLanguage: outputLanguage(req) },
       { tenantId: req.user!.tenant_id, userId: req.user!.id, chatId }
     );
 
@@ -199,7 +204,7 @@ aiRoutes.post("/decompose-task", async (req: AuthRequest, res) => {
     const { title, description } = req.body;
     if (!title) return res.status(400).json({ success: false, error: aiError(req, "任务标题必填", "Task title is required") });
 
-    const subtasks = await decomposeTask(sanitizeLLMInput(title), sanitizeLLMInput(description || ""));
+    const subtasks = await decomposeTask(sanitizeLLMInput(title), sanitizeLLMInput(description || ""), outputLanguage(req));
     res.json({ success: true, data: { subtasks, ai_generated: true } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: safeErr(req, err) });
@@ -211,7 +216,7 @@ aiRoutes.post("/summarize", async (req: AuthRequest, res) => {
     const { content } = req.body;
     if (!content) return res.status(400).json({ success: false, error: aiError(req, "内容必填", "Content is required") });
 
-    const summary = await generateSummary(sanitizeLLMInput(String(content)));
+    const summary = await generateSummary(sanitizeLLMInput(String(content)), outputLanguage(req));
     res.json({ success: true, data: { summary, ai_generated: true } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: safeErr(req, err) });
@@ -223,7 +228,7 @@ aiRoutes.post("/analyze", async (req: AuthRequest, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ success: false, error: aiError(req, "文本必填", "Text is required") });
 
-    const result = await analyzeSentiment(sanitizeLLMInput(String(text)));
+    const result = await analyzeSentiment(sanitizeLLMInput(String(text)), outputLanguage(req));
     res.json({ success: true, data: { ...result, ai_generated: true } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: safeErr(req, err) });
@@ -245,6 +250,7 @@ aiRoutes.get("/agents", (req: AuthRequest, res) => {
 aiRoutes.post("/generate-report", async (req: AuthRequest, res) => {
   try {
     const { type, params } = req.body;
+    const language = outputLanguage(req);
     // 白名单校验：仅允许预定义报告类型
     if (!ALLOWED_REPORT_TYPES.includes(type)) {
       return res.status(400).json({ success: false, error: aiError(req, `不支持的报表类型: ${type}`, `Unsupported report type: ${type}`) });
@@ -273,12 +279,13 @@ aiRoutes.post("/generate-report", async (req: AuthRequest, res) => {
       context = `今日数据：总任务${tasks.length}个，已完成${tasks.filter(t => t.status === 'done').length}个，进行中${tasks.filter(t => t.status === 'in_progress').length}个，消息${messages.c}条`;
     }
 
-    const prompt = params?.prompt ? sanitizeLLMInput(String(params.prompt)) : `请基于以下数据生成一份${type === 'daily_report' ? '日报' : type === 'task_summary' ? '任务报告' : '人员报告'}：\n\n${context}`;
+    const reportName = type === "daily_report" ? (language === "en" ? "daily report" : "日报") : type === "task_summary" ? (language === "en" ? "task report" : "任务报告") : (language === "en" ? "employee report" : "人员报告");
+    const prompt = params?.prompt ? sanitizeLLMInput(String(params.prompt)) : language === "en" ? `Create a ${reportName} from the following data:\n\n${context}` : `请基于以下数据生成一份${reportName}：\n\n${context}`;
 
     const response = await callLLM([
-      { role: "system", content: "你是企业报告生成专家，请基于数据生成专业、结构化的报告。使用Markdown格式。" },
+      { role: "system", content: language === "en" ? "You are an enterprise reporting specialist. Produce a professional, structured English report from the supplied data using Markdown." : "你是企业报告生成专家，请基于数据生成专业、结构化的报告。使用Markdown格式。" },
       { role: "user", content: prompt },
-    ]);
+    ], 0.7, 1_024, language);
 
     res.json({ success: true, data: { report: response.content, ai_generated: true } });
   } catch (err: any) {
@@ -289,6 +296,7 @@ aiRoutes.post("/generate-report", async (req: AuthRequest, res) => {
 aiRoutes.post("/suggest-assignee", async (req: AuthRequest, res) => {
   try {
     const { title, description } = req.body;
+    const language = outputLanguage(req);
     if (!title) return res.status(400).json({ success: false, error: aiError(req, "任务标题必填", "Task title is required") });
 
     const employees = dbAll(
@@ -303,9 +311,9 @@ aiRoutes.post("/suggest-assignee", async (req: AuthRequest, res) => {
     const context = `可用AI员工：\n${(employees as any[]).map(e => `- ${e.name}(${e.role}, 技能: ${e.skills}, 当前任务数: ${e.active_tasks})`).join("\n")}`;
 
     const response = await callLLM([
-      { role: "system", content: "你是任务分配专家，请根据任务需求和员工技能匹配最合适的执行者。只返回员工ID。" },
-      { role: "user", content: `任务：${sanitizeLLMInput(title)}\n描述：${sanitizeLLMInput(description || "无")}\n\n${context}\n\n请推荐1-2位最合适的员工ID（用逗号分隔）：` },
-    ]);
+      { role: "system", content: language === "en" ? "You are a task-assignment specialist. Match task needs to employee skills. Return only employee IDs." : "你是任务分配专家，请根据任务需求和员工技能匹配最合适的执行者。只返回员工ID。" },
+      { role: "user", content: language === "en" ? `Task: ${sanitizeLLMInput(title)}\nDescription: ${sanitizeLLMInput(description || "None")}\n\n${context}\n\nRecommend the 1-2 most suitable employee IDs, comma-separated:` : `任务：${sanitizeLLMInput(title)}\n描述：${sanitizeLLMInput(description || "无")}\n\n${context}\n\n请推荐1-2位最合适的员工ID（用逗号分隔）：` },
+    ], 0.7, 1_024, language);
 
     const ids = response.content.match(/\d+/g)?.map(Number) || [];
     const suggested = (employees as any[]).filter(e => ids.includes(e.id));
