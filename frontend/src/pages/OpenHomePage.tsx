@@ -429,6 +429,23 @@ export default function OpenHomePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [navOpen]);
 
+  useEffect(() => {
+    const title = isEnglish
+      ? "openXYOS | Open-source OS for Human-AI Organizations"
+      : "openXYOS · 面向人机共融组织的开源操作系统";
+    const description = isEnglish
+      ? "openXYOS is an open-source operating system for human-AI organizations, with multi-tenancy, organization modeling, modular apps, and governed agents."
+      : "openXYOS 是面向人机共融组织的开源操作系统，提供多租户、组织架构、模块化应用与可治理智能体能力。";
+    document.title = title;
+    let descriptionElement = document.querySelector('meta[name="description"]');
+    if (!descriptionElement) {
+      descriptionElement = document.createElement("meta");
+      descriptionElement.setAttribute("name", "description");
+      document.head.appendChild(descriptionElement);
+    }
+    descriptionElement.setAttribute("content", description);
+  }, [isEnglish]);
+
   return <div className="ox-page">
     <nav className="ox-nav" aria-label={tx("主导航", "Primary navigation")}>
       <a className="ox-brand" href="#top" onClick={closeNav}><i><Network size={18}/></i><b>open<span>XYOS</span></b><em>community</em></a>
