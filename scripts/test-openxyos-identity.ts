@@ -38,7 +38,7 @@ assert.ok(fs.existsSync(path.join(root, "docs/archive/XYOS-CHANGELOG.md")));
 
 const healthSource = fs.readFileSync(path.join(root, "backend/routes/health.ts"), "utf8");
 assert.match(healthSource, /OPENXYOS_VERSION/);
-assert.doesNotMatch(healthSource, /0\.50\.0-dev|4\.5\.2|0\.4\.5\.3|XYOS_VERSION/);
+assert.doesNotMatch(healthSource, /0\.50\.0-dev|4\.5\.2|0\.4\.5\.3|(?<![A-Z])XYOS_VERSION/);
 
 const versionSource = fs.readFileSync(path.join(root, "backend/version.ts"), "utf8");
 assert.doesNotMatch(versionSource, /4\.5\.2|0\.4\.5\.3|BranchControl/);
