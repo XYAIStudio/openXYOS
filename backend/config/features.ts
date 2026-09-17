@@ -1,12 +1,13 @@
 /*
- * XYOS V4.5 — 全局功能开关 (Feature Flags)
- * 所有新功能通过环境变量控制启用/禁用
- * 支持运行时动态降级，不修改代码即可回滚
- * 
- * 使用方式:
- *   import { FEATURES } from './config/features';
- *   if (FEATURES.ENABLE_HUMAN_IN_THE_LOOP) { ... }
+ * openXYOS feature flags.
+ * New capabilities are gated by environment variables so they can be disabled without a code change.
+ *
+ * Usage:
+ *   import { FEATURE_FLAGS } from './config/features';
+ *   if (FEATURE_FLAGS.ENABLE_HUMAN_IN_THE_LOOP) { ... }
  */
+
+import { OPENXYOS_VERSION } from "../openxyos-identity";
 
 export const FEATURE_FLAGS = {
   // ============ V4.1 人在回路 ============
@@ -117,16 +118,10 @@ export function getEnabledModules(): string[] {
 }
 
 /**
- * 获取当前版本信息
+ * Public feature-set label. Matches package.json so operators never see commercial 4.x numbers.
  */
 export function getFeatureVersion(): string {
-  const modules = getEnabledModules();
-  if (modules.includes('private-deploy') && modules.includes('db-adapter')) return 'v4.5';
-  if (modules.includes('native-bridge')) return 'v4.4';
-  if (modules.includes('vector-memory') || modules.includes('react-agent')) return 'v4.3';
-  if (modules.includes('mcp-server') || modules.includes('mcp-client')) return 'v4.2';
-  if (modules.includes('hitl')) return 'v4.1';
-  return 'v4.0';
+  return OPENXYOS_VERSION;
 }
 
 /**

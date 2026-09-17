@@ -28,6 +28,7 @@ export default tseslint.config(
       "eslint.config.*",
       "_*",
       "tmp-archive/**",
+      "docs/archive/**",
       "**/*.js",
       "**/*.mjs",
       "**/*.cjs",

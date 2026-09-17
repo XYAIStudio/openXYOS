@@ -16,6 +16,7 @@
 
 import { dbGet, dbAll, dbRun } from "../db";
 import { FEATURE_FLAGS } from "../config/features";
+import { OPENXYOS_VERSION } from "../openxyos-identity";
 
 // ─────────────────────────────────────────────
 // MCP 协议类型定义
@@ -195,8 +196,8 @@ export function handleInitialize(): MCPInitializeResult {
   return {
     protocolVersion: "2024-11-05",
     serverInfo: {
-      name: "XYOS-MCP-Server",
-      version: "4.2.0",
+      name: "openXYOS-MCP-Server",
+      version: OPENXYOS_VERSION,
     },
     capabilities: {
       tools: {

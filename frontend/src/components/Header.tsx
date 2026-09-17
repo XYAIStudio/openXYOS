@@ -6,6 +6,7 @@ import { authFetch } from "../api/authFetch";
 import { Sun, Moon, Menu, X, LogOut, Megaphone } from "lucide-react";
 import NotificationPanel from "./NotificationPanel";
 import { LanguageToggle, useLocale } from "../i18n";
+import { OPENXYOS_VERSION } from "../openxyos-identity";
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -58,7 +59,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           title={mobileOpen ? message("header.closeMenu") : message("header.openMenu")}>
           {mobileOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
-        <span className="text-[11px] text-text-muted font-mono tracking-wide shrink-0">openXYOS</span>
+        <span className="text-[11px] text-text-muted font-mono tracking-wide shrink-0">openXYOS {OPENXYOS_VERSION}</span>
       </div>
 
       {/* 置顶公告轮播 */}

@@ -6,6 +6,7 @@
  */
 
 import { FEATURE_FLAGS } from "../config/features";
+import { OPENXYOS_VERSION } from "../openxyos-identity";
 
 // ─────────────────────────────────────────────
 // 类型定义
@@ -100,7 +101,7 @@ async function connectToServer(server: MCPServerConfig): Promise<boolean> {
         method: "initialize",
         params: {
           protocolVersion: "2024-11-05",
-          clientInfo: { name: "XYOS-MCP-Client", version: "4.2.0" },
+          clientInfo: { name: "openXYOS-MCP-Client", version: OPENXYOS_VERSION },
           capabilities: {},
         },
         id: 1,

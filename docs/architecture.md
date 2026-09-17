@@ -17,7 +17,7 @@ Express server
 
 ## Frontend
 
-`frontend/src/App.tsx` owns routing. Pages use a shared authenticated fetch layer and Zustand stores. Tenant module settings load once after authentication; the shared store controls sidebar visibility and guards disabled routes. Vite provides the development server, production bundle, and PWA assets.
+`frontend/src/OpenApp.tsx` owns the community-edition routes. The signed-in shell uses the 12-module open catalog from `frontend/src/open-modules.ts` and `/api/module-settings`. Pages use a shared authenticated fetch layer and Zustand stores. Tenant module settings load once after authentication; the shared store controls sidebar visibility and guards disabled routes. Vite provides the development server, production bundle, and PWA assets. Commercial leftover pages are archived under `docs/archive/` and are not part of the public runtime.
 
 ## Backend
 

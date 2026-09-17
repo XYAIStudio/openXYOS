@@ -24,6 +24,7 @@
     "backups",
     "backend/backups",
     "V0.5",
-    "dist-backup-20260626"
+    "dist-backup-20260626",
+    "docs/archive"
   ]
 }
