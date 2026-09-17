@@ -1,6 +1,14 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions / 提问
+    url: https://github.com/XYAIStudio/openXYOS/discussions/new?category=q-a
+    about: Ask install, module, and Agent Studio questions in Discussions Q&A. Do not file an issue for support.
+  - name: Ideas / 路线图建议
+    url: https://github.com/XYAIStudio/openXYOS/discussions/new?category=ideas
+    about: Share roadmap ideas and product suggestions with the community before opening a feature issue.
+  - name: Show and tell / 展示
+    url: https://github.com/XYAIStudio/openXYOS/discussions/new?category=show-and-tell
+    about: Show a module, fork, demo, or integration you built on openXYOS.
   - name: Security vulnerability
     url: https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/privately-reporting-a-security-vulnerability
     about: Use the repository's private vulnerability reporting flow. Do not disclose security details publicly.
-

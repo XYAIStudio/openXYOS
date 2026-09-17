@@ -1,6 +1,8 @@
-# Contributing to XYOS
+# Contributing to openXYOS
 
-Thank you for helping improve XYOS.
+Thank you for helping improve openXYOS.
+
+New contributors: start with the [community guide](docs/community/README.md) for Discussions vs Issues, a five-minute quickstart, and good first contribution paths.
 
 ## Before opening a change
 
