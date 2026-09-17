@@ -114,6 +114,6 @@ npm run build
 
 ## 安全、贡献与许可证
 
-请阅读 [SECURITY.md](SECURITY.md)、[CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。不要在公开 Issue 中提交漏洞细节、令牌、数据库或客户资料。
+请阅读 [社区指南](docs/community/README.md)、[SECURITY.md](SECURITY.md)、[CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。不要在公开 Issue 中提交漏洞细节、令牌、数据库或客户资料。使用问题请到 [Discussions Q&A](https://github.com/XYAIStudio/openXYOS/discussions/new?category=q-a)。
 
 源代码按 [Apache License 2.0](LICENSE) 发布。openXYOS 源自 XYOS；品牌和标识规则见 [TRADEMARKS.md](TRADEMARKS.md)。贡献合并前须完成来源声明与贡献许可流程；首发治理资料见 [docs/governance](docs/governance)。

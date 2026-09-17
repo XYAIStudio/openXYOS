@@ -42,4 +42,4 @@ npm run verify:open-source
 npm run build
 ```
 
-See the [language index](docs/i18n/README.md), [English operation guide](docs/guides/operation-guide.en.md), [module development](docs/module-development.md), [open-source scope](docs/open-source-scope.md), [security policy](SECURITY.md), and [contribution guide](CONTRIBUTING.md). The source is licensed under [Apache License 2.0](LICENSE).
+See the [community guide](docs/community/README.md), [language index](docs/i18n/README.md), [English operation guide](docs/guides/operation-guide.en.md), [module development](docs/module-development.md), [open-source scope](docs/open-source-scope.md), [security policy](SECURITY.md), and [contribution guide](CONTRIBUTING.md). Ask how-to questions in [Discussions Q&A](https://github.com/XYAIStudio/openXYOS/discussions/new?category=q-a). The source is licensed under [Apache License 2.0](LICENSE).
