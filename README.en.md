@@ -1,12 +1,21 @@
 # openXYOS
 
-**Languages:** [简体中文](README.md) · [English](README.en.md) · [Installation guide index](docs/i18n/README.md) · [Localization policy](docs/i18n/POLICY.md)
+**Languages:** [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md) · [Installation guide index](docs/i18n/README.md) · [Localization policy](docs/i18n/POLICY.md)
 
 Source repository: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
 
 openXYOS is a streamlined open-source human-agent organization operating system derived from XYOS. It keeps multi-level enterprise structures, multi-tenancy, modular applications, governed human-agent collaboration, agent customization, direct/group chat, and editable example modules.
 
 > Status: community release candidate for local development and evaluation. It is not represented as production-ready.
+
+## Developer community
+
+Welcome to the **XYAI Founders** WeCom group for openXYOS usage, extensions, and contributions. Scan the QR with WeCom; if it expires, see [Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
+
+<p align="center">
+  <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders WeCom QR" />
+</p>
+
 
 ## Runtime scope
 

@@ -1,6 +1,16 @@
 # openXYOS Documentation Languages
 
-Choose a language for the project overview and local installation guide:
+## Root README language editions
+
+- [简体中文](../../README.md)
+- [繁體中文](../../README.zh-TW.md)
+- [English](../../README.en.md)
+- [日本語](../../README.ja.md)
+- [한국어](../../README.ko.md)
+- [Français](../../README.fr.md)
+- [Español](../../README.es.md)
+
+## Overview and local installation guides
 
 - [简体中文](overview-install.zh-CN.md)
 - [繁體中文](overview-install.zh-TW.md)
