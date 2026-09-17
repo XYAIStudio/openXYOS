@@ -1,28 +1,22 @@
 # openXYOS
 
-**Languages:** [简体中文](README.md) · [English](README.en.md) · [Installation guide index](docs/i18n/README.md) · [Localization policy](docs/i18n/POLICY.md)
+**Languages:** [简体中文](README.md) · [繁体中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md) · [language index](docs/i18n/README.md) · [localization policy](docs/i18n/POLICY.md)
 
-Source repository: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
+Source: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
 
-openXYOS is a streamlined open-source human-agent organization operating system derived from XYOS. It keeps multi-level enterprise structures, multi-tenancy, modular applications, governed human-agent collaboration, agent customization, direct/group chat, and editable example modules.
+openXYOS is an open-source human–AI organization operating system derived from XYOS, with multi-tenancy, modular applications, governed collaboration, agent customization, chat, and extensible example modules.
 
-> Status: community release candidate for local development and evaluation. It is not represented as production-ready.
+> Status: community release candidate for local development and evaluation; not represented as production-ready.
 
-## Runtime scope
+## Developer community
 
-The signed-in product exposes twelve modules: Workspace, Announcements, Organization, Human & Agent Resources, Skills & Plugins, Collaboration, Agent Studio, Tasks, Knowledge, Reflection, Governance, and Settings.
+Welcome to the **XYAI Founders** WeCom group for openXYOS usage, extensions, and contributions. Scan the QR with WeCom; if it expires, see [Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
 
-Tenant administrators can enable or disable configurable modules and rename their labels. Workspace and Settings remain foundation modules. Example modules retain complete frontend/API/data paths for secondary development.
-
-## Agent lifecycle
-
-A user defines an agent's name, positioning, capabilities, and experience; uploads supported reference documents; and may link an ima knowledge-base URL. Files are security checked and text-extracted into the agent blueprint and runtime description.
-
-The generated consultant agent enters the Talent Market automatically. After recruitment it becomes a reserve employee, where an administrator can assign responsibilities and a department. High-risk outputs require human review. An ima URL is linked but unverified until a live connector validates it.
+<p align="center"><img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders WeCom QR" /></p>
 
 ## Quick start
 
-Node.js 20.19 or later is required.
+Node.js 20.19+ is required.
 
 ```bash
 npm ci
@@ -30,16 +24,4 @@ cp .env.example .env
 npm run dev
 ```
 
-Replace secret placeholders before startup. The client runs at `http://localhost:5174`; the API runs at `http://localhost:3000/api`.
-
-## Verification
-
-```bash
-npm run lint
-npm run typecheck
-npm test
-npm run verify:open-source
-npm run build
-```
-
-See the [community guide](docs/community/README.md), [language index](docs/i18n/README.md), [English operation guide](docs/guides/operation-guide.en.md), [module development](docs/module-development.md), [open-source scope](docs/open-source-scope.md), [security policy](SECURITY.md), and [contribution guide](CONTRIBUTING.md). Ask how-to questions in [Discussions Q&A](https://github.com/XYAIStudio/openXYOS/discussions/new?category=q-a). The source is licensed under [Apache License 2.0](LICENSE).
+See the [community guide](docs/community/README.md), [language index](docs/i18n/README.md), [security policy](SECURITY.md), and [contribution guide](CONTRIBUTING.md). Ask questions in [Discussions Q&A](https://github.com/XYAIStudio/openXYOS/discussions/new?category=q-a). Licensed under [Apache License 2.0](LICENSE).
