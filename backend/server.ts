@@ -54,6 +54,7 @@ import { seedDatabase } from "./seed";
 import { authenticate } from "./middleware";
 import { setupWebSocket } from "./services/websocket";
 import { globalErrorHandler } from "./utils/error-handler";
+import { OPENXYOS_VERSION } from "./openxyos-identity";
 
 async function main() {
   const app = express();
@@ -223,7 +224,7 @@ app.get("/admin/database", (req, res) => {
   setupWebSocket(server);
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n  🌐 openXYOS Community — Human + Agent OS`);
+    console.log(`\n  🌐 openXYOS Community ${OPENXYOS_VERSION} — Human + Agent OS`);
     console.log(`  ─────────────────────────────────────`);
     console.log(`  Server:     http://localhost:${PORT}`);
     console.log(`  WebSocket:  ws://localhost:${PORT}/ws`);

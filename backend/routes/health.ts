@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { dbGet } from "../db";
+import { OPENXYOS_EDITION, OPENXYOS_PRODUCT, OPENXYOS_VERSION } from "../openxyos-identity";
 
 export const healthRoutes = Router();
 
@@ -10,8 +11,12 @@ function checkDatabase() {
   return { employees: employees.c, tasks: tasks.c, users: users.c };
 }
 
+function publicIdentity() {
+  return { product: OPENXYOS_PRODUCT, edition: OPENXYOS_EDITION, version: OPENXYOS_VERSION };
+}
+
 healthRoutes.get("/livez", (_req, res) => {
-  res.status(200).json({ status: "live", uptime: Math.floor(process.uptime()) });
+  res.status(200).json({ status: "live", uptime: Math.floor(process.uptime()), ...publicIdentity() });
 });
 
 healthRoutes.get("/readyz", (_req, res) => {
@@ -19,13 +24,13 @@ healthRoutes.get("/readyz", (_req, res) => {
     const stats = checkDatabase();
     res.status(200).json({
       status: "ready",
-      version: process.env.XYOS_VERSION || "0.50.0-dev",
+      ...publicIdentity(),
       database: "ok",
       uptime: Math.floor(process.uptime()),
       stats,
     });
   } catch {
-    res.status(503).json({ status: "not_ready", version: process.env.XYOS_VERSION || "0.50.0-dev", database: "error" });
+    res.status(503).json({ status: "not_ready", ...publicIdentity(), database: "error" });
   }
 });
 
@@ -33,8 +38,8 @@ healthRoutes.get("/readyz", (_req, res) => {
 healthRoutes.get("/", (_req, res) => {
   try {
     const stats = checkDatabase();
-    res.status(200).json({ status: "ready", version: process.env.XYOS_VERSION || "0.50.0-dev", database: "ok", uptime: Math.floor(process.uptime()), stats });
+    res.status(200).json({ status: "ready", ...publicIdentity(), database: "ok", uptime: Math.floor(process.uptime()), stats });
   } catch {
-    res.status(503).json({ status: "not_ready", version: process.env.XYOS_VERSION || "0.50.0-dev", database: "error" });
+    res.status(503).json({ status: "not_ready", ...publicIdentity(), database: "error" });
   }
 });
