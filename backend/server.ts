@@ -22,6 +22,7 @@ import { settingsRoutes } from "./routes/settings";
 import { openModuleSettingsRoutes } from "./routes/open-module-settings";
 import { aiRoutes } from "./routes/ai";
 import { agentStudioRoutes } from "./routes/agent-studio";
+import { xyaiRoutes } from "./routes/xyai";
 import { tenantRoutes } from "./routes/tenants";
 import { employeeCodeRoutes } from "./routes/employee-code";
 import { memoryRoutes } from "./routes/memory";
@@ -90,7 +91,7 @@ async function main() {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-XYAI-Interop,Accept-Language");
       if (req.method === "OPTIONS") return res.sendStatus(200);
       return next();
     }
@@ -103,6 +104,7 @@ async function main() {
         }
       },
       credentials: true,
+      allowedHeaders: ["Content-Type", "Authorization", "X-XYAI-Interop", "Accept-Language"],
     })(req, res, next);
   });
 
@@ -175,6 +177,7 @@ app.use(cookieParser(cookieSecret));
   app.use("/api/module-settings", openModuleSettingsRoutes);
   app.use("/api/ai", aiRoutes);
   app.use("/api/agent-studio", agentStudioRoutes);
+  app.use("/api/xyai", xyaiRoutes);
   app.use("/api/tenants", tenantRoutes);
     app.use("/api/memory", memoryRoutes);
   app.use("/api/heartbeat", heartbeatRoutes);

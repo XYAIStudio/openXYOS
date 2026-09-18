@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { authFetch } from "../api/authFetch";
 import { useAuthStore } from "../stores/auth";
+import { useWorkforceStore } from "../stores/workforce";
 import Avatar from "../components/Avatar";
 import { toPng, toSvg } from "html-to-image";
 import jsPDF from "jspdf";
@@ -108,31 +109,52 @@ export default function OrgChart() {
   const chartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const didInitCollapse = useRef(false);
+  const workforceRevision = useWorkforceStore((s) => s.revision);
+  const notifyWorkforceChanged = useWorkforceStore((s) => s.notifyChanged);
 
   const isAdmin = user?.role === "super_admin" || user?.role === "admin";
 
   const fetchTree = useCallback(async () => {
-    setLoading(true);
     const r = await authFetch("/api/org/tree");
     const d = await r.json();
     if (d.success) {
       const data = d.data || [];
       setTree(data);
-      // Auto-collapse depth >= 3 (regionals / deep HQ centers → branches hidden)
-      const s = new Set<number>();
-      function walk(depts: Department[], level: number) {
-        for (const dept of depts) {
-          if (level >= 3 && dept.children && dept.children.length > 0) s.add(dept.id);
-          if (dept.children) walk(dept.children, level + 1);
+      // Only auto-collapse a very large seeded tree on first load. Do not recollapse
+      // after the user creates nested departments — nesting has no depth cap.
+      if (!didInitCollapse.current) {
+        didInitCollapse.current = true;
+        let count = 0;
+        function countDepts(depts: Department[]) {
+          for (const dept of depts) {
+            count += 1;
+            if (dept.children) countDepts(dept.children);
+          }
+        }
+        countDepts(data);
+        if (count > 30) {
+          const s = new Set<number>();
+          function walk(depts: Department[], level: number) {
+            for (const dept of depts) {
+              if (level >= 3 && dept.children && dept.children.length > 0) s.add(dept.id);
+              if (dept.children) walk(dept.children, level + 1);
+            }
+          }
+          walk(data, 0);
+          setCollapsedNodes(s);
         }
       }
-      walk(data, 0);
-      setCollapsedNodes(s);
     }
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchTree(); }, [fetchTree]);
+  const handleOrgChanged = useCallback(() => {
+    notifyWorkforceChanged();
+    void fetchTree();
+  }, [fetchTree, notifyWorkforceChanged]);
+
+  useEffect(() => { void fetchTree(); }, [fetchTree, workforceRevision]);
 
   const toggleCollapse = useCallback((id: number) => {
     setCollapsedNodes(prev => {
@@ -167,7 +189,7 @@ export default function OrgChart() {
       const d = await r.json();
       if (d.success) {
         alert(t("导入成功！解析到 ", "Import succeeded: ") + (d.dept_count || 0) + t(" 个部门，", " departments and ") + (d.emp_count || 0) + t(" 名员工", " employees"));
-        fetchTree();
+        handleOrgChanged();
       } else {
         alert(t("导入失败: ", "Import failed: ") + (d.error || t("未知错误", "Unknown error")));
       }
@@ -371,24 +393,46 @@ export default function OrgChart() {
 
       {/* Chart Area */}
       <div ref={containerRef} className="flex-1 overflow-auto bg-gray-50 p-6">
-        <div
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-        >
-          <OrgTreeRenderer
-            tree={tree}
-            direction={direction}
-            searchQuery={searchQuery}
-            onSelectEmp={setSelectedEmp}
-            onEditDept={setEditDept}
-            onAddDept={setShowAddDept}
-            onAddEmp={setShowAddEmp}
-            isAdmin={isAdmin}
-            chartRef={chartRef}
-            onNavigate={navigate}
-            collapsedNodes={collapsedNodes}
-            onToggleCollapse={toggleCollapse}
-          />
-        </div>
+        {tree.length === 0 ? (
+          <div className="h-full min-h-[320px] flex items-center justify-center">
+            <div className="max-w-md text-center bg-white border border-dashed border-gray-300 rounded-2xl px-8 py-10 shadow-sm">
+              <Building2 size={28} className="mx-auto text-primary mb-3" />
+              <h3 className="text-base font-semibold text-gray-800 mb-2">{t("组织架构为空", "Organization is empty")}</h3>
+              <p className="text-sm text-gray-500 mb-5">
+                {t("当前还没有部门。在画布上创建根部门后，即可继续嵌套子部门并添加员工。", "There are no departments yet. Create a root department on the canvas, then nest child departments and add employees.")}
+              </p>
+              {isAdmin ? (
+                <button
+                  onClick={() => setShowAddDept({ parentId: null })}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm rounded-lg hover:opacity-90"
+                >
+                  <Plus size={14} /> {t("在画布上创建部门", "Create a department on the canvas")}
+                </button>
+              ) : (
+                <p className="text-xs text-gray-400">{t("请联系管理员创建部门。", "Ask an administrator to create a department.")}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+          >
+            <OrgTreeRenderer
+              tree={tree}
+              direction={direction}
+              searchQuery={searchQuery}
+              onSelectEmp={setSelectedEmp}
+              onEditDept={setEditDept}
+              onAddDept={setShowAddDept}
+              onAddEmp={setShowAddEmp}
+              isAdmin={isAdmin}
+              chartRef={chartRef}
+              onNavigate={navigate}
+              collapsedNodes={collapsedNodes}
+              onToggleCollapse={toggleCollapse}
+            />
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -397,7 +441,7 @@ export default function OrgChart() {
           emp={selectedEmp}
           onClose={() => setSelectedEmp(null)}
           onStartChat={startChat}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
           departments={tree}
           onReportingLine={setReportingLineEmp}
         />
@@ -406,27 +450,27 @@ export default function OrgChart() {
         <DeptEditModal
           dept={editDept}
           onClose={() => setEditDept(null)}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
         />
       )}
       {showAddDept && (
         <AddDeptModal
           parentId={showAddDept.parentId}
           onClose={() => setShowAddDept(null)}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
         />
       )}
       {showAddEmp && (
         <AddEmpModal
           departmentId={showAddEmp.departmentId}
           onClose={() => setShowAddEmp(null)}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
         />
       )}
       {showVersionManager && (
         <VersionManagerModal
           onClose={() => setShowVersionManager(false)}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
         />
       )}
       {reportingLineEmp && (
@@ -434,7 +478,7 @@ export default function OrgChart() {
           employee={reportingLineEmp}
           allEmployees={tree.flatMap(d => getEmployeesFlat(d))}
           onClose={() => setReportingLineEmp(null)}
-          onSaved={fetchTree}
+          onSaved={handleOrgChanged}
         />
       )}
     </div>
@@ -1313,7 +1357,7 @@ function DeptEditModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">{t("部门层级", "Department level")}</label>
-              <input type="number" value={level} onChange={(e) => setLevel(parseInt(e.target.value) || 1)} min="1" max="10"
+              <input type="number" value={level} onChange={(e) => setLevel(parseInt(e.target.value) || 1)} min="1"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
             </div>
           </div>
@@ -1462,11 +1506,20 @@ function AddEmpModal({
   onSaved: () => void;
 }) {
   const { t } = useLocale();
+  const [mode, setMode] = useState<"create" | "reserve">("create");
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [employeeType, setEmployeeType] = useState<"ai" | "human">("ai");
   const [agentType, setAgentType] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reserveList, setReserveList] = useState<Employee[]>([]);
+  const [selectedReserveId, setSelectedReserveId] = useState<number | "">("");
+
+  useEffect(() => {
+    authFetch("/api/employees?category=reserve").then(r => r.json()).then(d => {
+      if (d.success) setReserveList(d.data || []);
+    }).catch(() => undefined);
+  }, []);
 
   const agentTypes = [
     { value: "", label: t("无", "None") },
@@ -1483,21 +1536,32 @@ function AddEmpModal({
   ];
 
   const save = async () => {
-    if (!name.trim()) return;
     setSaving(true);
-    await authFetch("/api/org/employees", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        role,
-        department_id: departmentId,
-        employee_type: employeeType,
-        agent_type: agentType || null,
-      }),
-    });
-    setSaving(false);
-    onSaved();
-    onClose();
+    try {
+      if (mode === "reserve") {
+        if (!selectedReserveId) return;
+        await authFetch(`/api/org/employees/${selectedReserveId}`, {
+          method: "PUT",
+          body: JSON.stringify({ department_id: departmentId }),
+        });
+      } else {
+        if (!name.trim()) return;
+        await authFetch("/api/org/employees", {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            role,
+            department_id: departmentId,
+            employee_type: employeeType,
+            agent_type: agentType || null,
+          }),
+        });
+      }
+      onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1510,59 +1574,96 @@ function AddEmpModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-gray-800 mb-5">{t("添加员工", "Add employee")}</h2>
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setMode("create")}
+            className={`flex-1 py-2 text-xs rounded-lg border ${mode === "create" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-gray-200 text-gray-500"}`}
+          >
+            {t("新建员工", "New employee")}
+          </button>
+          <button
+            onClick={() => setMode("reserve")}
+            className={`flex-1 py-2 text-xs rounded-lg border ${mode === "reserve" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-gray-200 text-gray-500"}`}
+          >
+            {t("从备选员工添加", "Add from reserve employees")}
+          </button>
+        </div>
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              {t("姓名 *", "Name *")}
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              {t("职位", "Role")}
-            </label>
-            <input
-              type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              {t("员工类型", "Employee type")}
-            </label>
-            <select
-              value={employeeType}
-              onChange={(e) => setEmployeeType(e.target.value as any)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
-            >
-              <option value="ai">{t("AI员工", "AI employee")}</option>
-              <option value="human">{t("人类员工", "Human employee")}</option>
-            </select>
-          </div>
-          {employeeType === "ai" && (
+          {mode === "reserve" ? (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                {t("AI角色", "AI role")}
+                {t("备选员工", "Reserve employees")}
               </label>
               <select
-                value={agentType}
-                onChange={(e) => setAgentType(e.target.value)}
+                value={selectedReserveId}
+                onChange={(e) => setSelectedReserveId(e.target.value ? Number(e.target.value) : "")}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
               >
-                {agentTypes.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
+                <option value="">{t("选择备选员工", "Select a reserve employee")}</option>
+                {reserveList.map((emp) => (
+                  <option key={emp.id} value={emp.id}>{emp.name}{emp.role ? ` · ${emp.role}` : ""}</option>
                 ))}
               </select>
+              {reserveList.length === 0 && (
+                <p className="text-[11px] text-gray-400 mt-2">{t("暂无备选员工", "No reserve employees")}</p>
+              )}
             </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  {t("姓名 *", "Name *")}
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  {t("职位", "Role")}
+                </label>
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  {t("员工类型", "Employee type")}
+                </label>
+                <select
+                  value={employeeType}
+                  onChange={(e) => setEmployeeType(e.target.value as any)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                >
+                  <option value="ai">{t("AI员工", "AI employee")}</option>
+                  <option value="human">{t("人类员工", "Human employee")}</option>
+                </select>
+              </div>
+              {employeeType === "ai" && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                    {t("AI角色", "AI role")}
+                  </label>
+                  <select
+                    value={agentType}
+                    onChange={(e) => setAgentType(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                  >
+                    {agentTypes.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex justify-end gap-3 mt-6">
@@ -1574,10 +1675,10 @@ function AddEmpModal({
           </button>
           <button
             onClick={save}
-            disabled={saving || !name.trim()}
+            disabled={saving || (mode === "create" ? !name.trim() : !selectedReserveId)}
             className="px-5 py-2 bg-blue-500 text-white text-sm rounded-xl hover:bg-blue-600 disabled:opacity-50"
           >
-            {saving ? t("创建中...", "Creating...") : t("创建", "Create")}
+            {saving ? t("保存中...", "Saving...") : mode === "reserve" ? t("加入部门", "Add to department") : t("创建", "Create")}
           </button>
         </div>
       </div>

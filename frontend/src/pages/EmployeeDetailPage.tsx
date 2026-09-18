@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { authFetch } from "../api/authFetch";
 import { useAuthStore } from "../stores/auth";
+import { useWorkforceStore } from "../stores/workforce";
 import Avatar from "../components/Avatar";
 import { PRESET_AVATARS } from "../utils/avatar";
 import { useLocale } from "../i18n";
@@ -74,6 +75,7 @@ export default function EmployeeDetailPage() {
   const [editAvatar, setEditAvatar] = useState("");
   const [editDepartmentId, setEditDepartmentId] = useState(0);
   const [departments, setDepartments] = useState<{ id: number; name: string; level: number }[]>([]);
+  const notifyWorkforceChanged = useWorkforceStore((s) => s.notifyChanged);
 
   // 形象照上传状态
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -126,11 +128,14 @@ export default function EmployeeDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      // Fetch employee from tree
-      const treeRes = await authFetch("/api/org/tree").then(r => r.json());
+      const [empRes, treeRes] = await Promise.all([
+        authFetch(`/api/employees/${id}`).then(r => r.json()),
+        authFetch("/api/org/tree").then(r => r.json()),
+      ]);
+
+      let found: Employee | null = null;
+      let dept: Department | null = null;
       if (treeRes.success) {
-        let found: Employee | null = null;
-        let dept: Department | null = null;
         const findEmp = (depts: Department[]) => {
           for (const d of depts) {
             const emp = d.employees.find((e: Employee) => e.id === Number(id));
@@ -139,18 +144,7 @@ export default function EmployeeDetailPage() {
           }
         };
         findEmp(treeRes.data || []);
-        if (found) {
-          const emp = found as Employee;
-          setEmployee(emp);
-          setDepartment(dept);
-          setEditName(emp.name);
-          setEditRole(emp.role || "");
-          setEditDescription(emp.description || "");
-          setEditAvatar(emp.avatar_emoji || "");
-          setEditDepartmentId(emp.department_id);
-        }
 
-        // Flatten departments for edit form
         const flatDepts: { id: number; name: string; level: number }[] = [];
         const flatten = (depts: Department[], level: number) => {
           for (const d of depts) {
@@ -160,6 +154,22 @@ export default function EmployeeDetailPage() {
         };
         flatten(treeRes.data || [], 0);
         setDepartments(flatDepts);
+      }
+
+      const emp: Employee | null = empRes.success && empRes.data
+        ? { ...empRes.data, ...(found || {}) }
+        : found;
+      if (emp) {
+        setEmployee(emp);
+        if (!dept && emp.department_id) {
+          dept = { id: emp.department_id, name: (emp as any).department_name || "", parent_id: null, employees: [] };
+        }
+        setDepartment(dept);
+        setEditName(emp.name);
+        setEditRole(emp.role || "");
+        setEditDescription(emp.description || "");
+        setEditAvatar(emp.avatar_emoji || "");
+        setEditDepartmentId(emp.department_id || 0);
       }
 
       // Fetch reporting lines
@@ -193,11 +203,12 @@ export default function EmployeeDetailPage() {
       method: "PUT",
       body: JSON.stringify({
         name: editName, role: editRole, description: editDescription,
-        avatar_emoji: editAvatar, department_id: editDepartmentId,
+        avatar_emoji: editAvatar, department_id: editDepartmentId || null,
       }),
     });
     setSaving(false);
     setEditing(false);
+    notifyWorkforceChanged();
     fetchData();
   };
 
@@ -320,7 +331,8 @@ export default function EmployeeDetailPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-text-muted mb-1">{t("所属部门", "Department")}</label>
-                    <select value={editDepartmentId} onChange={e => setEditDepartmentId(Number(e.target.value))} className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary">
+                    <select value={editDepartmentId || ""} onChange={e => setEditDepartmentId(Number(e.target.value) || 0)} className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-primary">
+                      <option value="">{t("未分配", "Unassigned")}</option>
                       {departments.map(d => <option key={d.id} value={d.id}>{"　".repeat(d.level)}{d.name}</option>)}
                     </select>
                   </div>

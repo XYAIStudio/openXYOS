@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { MessageSquare, Send, Bot, Users, Loader2, Plus, Hash, Smile, Reply, X, Check, FileText, Copy, Download, ChevronRight, Lightbulb, ClipboardCheck, Edit2, UserPlus, Building2, ChevronDown, Forward, BookOpen, PanelLeftOpen, MessageCircle, ChevronLeft, Megaphone, Pin, Trash2, Shield, AtSign, Search } from "lucide-react";
 import { authFetch } from "../api/authFetch";
 import { useAuthStore } from "../stores/auth";
+import { useWorkforceStore } from "../stores/workforce";
 import { useChatWebSocket } from "../hooks/useWebSocket";
 import Avatar from "../components/Avatar";
 import MentionInput from "../components/MentionInput";
@@ -52,6 +53,8 @@ export default function ChatPage() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [employeesLoaded, setEmployeesLoaded] = useState(false);
+  const workforceRevision = useWorkforceStore((s) => s.revision);
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
   const [groupName, setGroupName] = useState("");
   const [showReactions, setShowReactions] = useState<number | null>(null);
@@ -108,8 +111,11 @@ export default function ChatPage() {
       if (d.success) setChats(d.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-    loadEmployees();
   }, []);
+
+  useEffect(() => {
+    void loadEmployees();
+  }, [workforceRevision]);
 
   useEffect(() => { msgEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -246,6 +252,7 @@ export default function ChatPage() {
       extractEmployees(tree);
       setEmployees(allEmps);
     }
+    setEmployeesLoaded(true);
   };
 
   const selectChat = async (chat: Chat) => {
@@ -726,7 +733,7 @@ export default function ChatPage() {
   };
 
   const renderEmployeeList = () => {
-    if (departments.length === 0) {
+    if (!employeesLoaded) {
       return (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={18} className="animate-spin text-text-muted" />
@@ -735,6 +742,13 @@ export default function ChatPage() {
     }
 
     const deptWithEmps = departments.filter(d => d.employees.length > 0);
+    if (deptWithEmps.length === 0) {
+      return (
+        <div className="px-4 py-8 text-center text-xs text-text-muted">
+          {t("暂无已分配部门的员工", "No employees assigned to a department yet")}
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-1">

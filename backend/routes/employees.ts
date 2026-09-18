@@ -300,17 +300,19 @@ employeeRoutes.post("/", requireAdmin, (req: AuthRequest, res) => {
 
 employeeRoutes.put("/:id", (req: AuthRequest, res) => {
   try {
-    const { name, role, department_id, agent_type, skills, avatar_emoji, status } = req.body;
+    const { name, role, department_id, agent_type, skills, avatar_emoji, status, description, employment_category } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
     if (name !== undefined) { updates.push("name = ?"); params.push(name); }
     if (role !== undefined) { updates.push("role = ?"); params.push(role); }
-    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id); }
+    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id || null); }
     if (agent_type !== undefined) { updates.push("agent_type = ?"); params.push(agent_type); }
     if (skills !== undefined) { updates.push("skills = ?"); params.push(skills); }
     if (avatar_emoji !== undefined) { updates.push("avatar_emoji = ?"); params.push(avatar_emoji); }
     if (status !== undefined) { updates.push("status = ?"); params.push(status); }
+    if (description !== undefined) { updates.push("description = ?"); params.push(description); }
+    if (employment_category !== undefined) { updates.push("employment_category = ?"); params.push(employment_category); }
 
     if (updates.length === 0) return res.status(400).json({ success: false, error: employeeError(req, "无更新内容", "No changes were provided") });
 

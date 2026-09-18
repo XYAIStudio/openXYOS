@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, UserPlus, Store, Search, ChevronRight, Building2, Briefcase, Bot, User, ArrowRightLeft, UserCheck, Sparkles, Filter, X, Plus } from "lucide-react";
+import { Users, UserPlus, Store, Search, ChevronRight, Building2, Briefcase, Bot, User, ArrowRightLeft, UserCheck, Sparkles, Filter, X, Plus, Pencil } from "lucide-react";
 import { useAuthStore } from "../stores/auth";
+import { useWorkforceStore } from "../stores/workforce";
 import { authFetch } from "../api/authFetch";
 import Avatar from "../components/Avatar";
 import { useLocale } from "../i18n";
@@ -19,6 +20,9 @@ interface Employee {
   employment_category: string;
   status: string;
   position_sequence?: string;
+  description?: string;
+  department_name?: string;
+  source?: string;
 }
 
 interface TalentItem {
@@ -80,6 +84,9 @@ export default function EmployeesPage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [skillsList, setSkillsList] = useState<any[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<number[]>([]);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const notifyWorkforceChanged = useWorkforceStore((s) => s.notifyChanged);
+  const workforceRevision = useWorkforceStore((s) => s.revision);
 
   useEffect(() => {
     loadCatStats();
@@ -90,7 +97,7 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (activeTab === "internal" || activeTab === "reserve") loadEmployees();
     if (activeTab === "talent") loadTalent();
-  }, [activeTab, filterType]);
+  }, [activeTab, filterType, workforceRevision]);
 
   async function loadCatStats() {
     try {
@@ -164,6 +171,7 @@ export default function EmployeesPage() {
           setSelectedSkills([]);
           loadEmployees();
           loadCatStats();
+          notifyWorkforceChanged();
           if (j.data?.id) navigate(`/employees/${j.data.id}`);
         }
       } else {
@@ -202,23 +210,15 @@ export default function EmployeesPage() {
     setLoading(false);
   }
 
-  async function handleOnboard(empId: number) {
-    const dept = prompt(t("请输入部门ID（1=CEO办公室, 5=产品研发中心, 10=运营中心...）", "Enter a department ID (for example: 1, 5, or 10)..."));
-    const role = prompt(t("请输入岗位名称（如：前端工程师）", "Enter a job title (for example: Frontend engineer)"));
-    try {
-      const r = await authFetch(`/api/employees/${empId}/onboard`, {
-        method: "POST",
-        body: JSON.stringify({ department_id: dept ? Number(dept) : undefined, role: role || undefined }),
-      });
-      if (r.ok) { loadEmployees(); loadCatStats(); }
-    } catch (e) { alert(t("入职失败", "Onboarding failed")); }
+  async function handleOnboard(emp: Employee) {
+    setEditingEmployee(emp);
   }
 
   async function handleReserve(empId: number) {
     if (!confirm(t("确认将该员工转入备选库？部门信息将被清除。", "Move this employee to the reserve pool? Their department assignment will be cleared."))) return;
     try {
       const r = await authFetch(`/api/employees/${empId}/reserve`, { method: "PUT" });
-      if (r.ok) { loadEmployees(); loadCatStats(); }
+      if (r.ok) { loadEmployees(); loadCatStats(); notifyWorkforceChanged(); }
     } catch (e) { alert(t("操作失败", "Operation failed")); }
   }
 
@@ -226,8 +226,38 @@ export default function EmployeesPage() {
     if (!confirm(t("确认招募该人才？将加入备选员工库。", "Recruit this talent into the reserve employee pool?"))) return;
     try {
       const r = await authFetch(`/api/talent/${talentId}/recruit`, { method: "POST" });
-      if (r.ok) { loadTalent(); loadCatStats(); }
+      if (r.ok) { loadTalent(); loadCatStats(); notifyWorkforceChanged(); }
     } catch (e) { alert(t("招募失败", "Recruitment failed")); }
+  }
+
+  async function saveEmployeeEdit(form: { name: string; role: string; description: string; department_id: string; skills: string }, onboard: boolean) {
+    if (!editingEmployee) return;
+    if (!form.name.trim()) return alert(t("请输入姓名", "Enter a name"));
+    const departmentId = form.department_id ? Number(form.department_id) : null;
+    const r = await authFetch(`/api/org/employees/${editingEmployee.id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        name: form.name,
+        role: form.role,
+        description: form.description,
+        skills: form.skills,
+        department_id: departmentId,
+      }),
+    });
+    const j = await r.json();
+    if (!j.success) return alert(j.error || t("保存失败", "Save failed"));
+    if (onboard) {
+      const onboardRes = await authFetch(`/api/employees/${editingEmployee.id}/onboard`, {
+        method: "POST",
+        body: JSON.stringify({ department_id: departmentId || undefined, role: form.role || undefined }),
+      });
+      const onboardJson = await onboardRes.json();
+      if (!onboardJson.success) return alert(onboardJson.error || t("入职失败", "Onboarding failed"));
+    }
+    setEditingEmployee(null);
+    loadEmployees();
+    loadCatStats();
+    notifyWorkforceChanged();
   }
 
   const filteredEmployees = search
@@ -337,6 +367,7 @@ export default function EmployeesPage() {
             onView={(id) => navigate(`/employees/${id}`)}
             onOnboard={handleOnboard}
             onReserve={handleReserve}
+            onEdit={setEditingEmployee}
           />
         )}
       </div>
@@ -352,6 +383,14 @@ export default function EmployeesPage() {
           onChange={(f) => setCreateForm(f)}
           onCancel={() => { setShowCreate(false); setSelectedSkills([]); }}
           onSubmit={handleCreate}
+        />
+      )}
+      {editingEmployee && (
+        <EditEmployeeModal
+          employee={editingEmployee}
+          departments={departments}
+          onCancel={() => setEditingEmployee(null)}
+          onSave={saveEmployeeEdit}
         />
       )}
     </div>
@@ -371,9 +410,10 @@ function StatCard({ label, count, sub, color }: { label: string; count: number; 
   );
 }
 
-function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onReserve }: {
+function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onReserve, onEdit }: {
   employees: Employee[]; isInternal: boolean; isAdmin: boolean;
-  onView: (id: number) => void; onOnboard: (id: number) => void; onReserve: (id: number) => void;
+  onView: (id: number) => void; onOnboard: (emp: Employee) => void; onReserve: (id: number) => void;
+  onEdit: (emp: Employee) => void;
 }) {
   const { t } = useLocale();
   if (employees.length === 0) {
@@ -398,6 +438,9 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
                 )}
               </div>
               <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || t("未分配岗位", "No role assigned")}</p>
+              {emp.department_name && (
+                <p className="text-[10px] text-text-muted mt-0.5">{t("部门：", "Department: ")}{emp.department_name}</p>
+              )}
               {emp.position_sequence && (
                 <p className="text-[10px] text-text-muted mt-0.5">{emp.position_sequence}</p>
               )}
@@ -418,10 +461,14 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
           {/* Admin Actions */}
           {isAdmin && (
             <div className="flex gap-2 mt-3 pt-3 border-t border-border" onClick={e => e.stopPropagation()}>
+              <button onClick={() => onEdit(emp)}
+                className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
+                <Pencil size={12} /> {t("编辑", "Edit")}
+              </button>
               {!isInternal ? (
-                <button onClick={() => onOnboard(emp.id)}
+                <button onClick={() => onOnboard(emp)}
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                  <UserCheck size={12} /> {t("入职", "Onboard")}
+                  <UserCheck size={12} /> {t("匹配部门", "Match department")}
                 </button>
               ) : (
                 <button onClick={() => onReserve(emp.id)}
@@ -717,6 +764,84 @@ function CreateEmployeeModal({ form, departments, skillsList, selectedSkills, on
             className="flex-1 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
             {t("创建员工", "Create employee")}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditEmployeeModal({ employee, departments, onCancel, onSave }: {
+  employee: Employee;
+  departments: { id: number; name: string }[];
+  onCancel: () => void;
+  onSave: (form: { name: string; role: string; description: string; department_id: string; skills: string }, onboard: boolean) => void;
+}) {
+  const { t } = useLocale();
+  const [form, setForm] = useState({
+    name: employee.name || "",
+    role: employee.role || "",
+    description: employee.description || "",
+    department_id: employee.department_id ? String(employee.department_id) : "",
+    skills: employee.skills || "",
+  });
+  const isReserve = employee.employment_category === "reserve";
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="bg-bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-lg font-bold text-text">{isReserve ? t("编辑备选员工", "Edit reserve employee") : t("编辑员工", "Edit employee")}</h2>
+          <button onClick={onCancel} className="text-text-muted hover:text-text"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("姓名", "Name")} *</label>
+            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("岗位/职位", "Role / title")}</label>
+            <input type="text" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+              className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("所属部门", "Department")}</label>
+            <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}
+              className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary">
+              <option value="">{t("未分配", "Unassigned")}</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("技能", "Skills")}</label>
+            <input type="text" value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })}
+              placeholder={t("用逗号分隔", "Comma-separated")}
+              className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-muted mb-1 block">{t("岗位职责描述", "Responsibilities")}</label>
+            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm focus:outline-none focus:border-primary resize-none" />
+          </div>
+        </div>
+        <div className="sticky bottom-0 bg-bg-card border-t border-border px-6 py-4 flex flex-col sm:flex-row gap-3 rounded-b-2xl">
+          <button onClick={onCancel}
+            className="flex-1 py-2.5 border border-border text-text rounded-lg text-sm font-medium hover:bg-bg-hover transition-colors">
+            {t("取消", "Cancel")}
+          </button>
+          <button onClick={() => onSave(form, false)}
+            className="flex-1 py-2.5 border border-primary/30 text-primary rounded-lg text-sm font-medium hover:bg-primary/5 transition-colors">
+            {t("保存", "Save")}
+          </button>
+          {isReserve && (
+            <button onClick={() => onSave(form, true)}
+              className="flex-1 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              {t("入职到部门", "Onboard to department")}
+            </button>
+          )}
         </div>
       </div>
     </div>
