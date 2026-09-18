@@ -410,6 +410,10 @@ function StatCard({ label, count, sub, color }: { label: string; count: number; 
   );
 }
 
+function isStudioSourced(source?: string): boolean {
+  return !!source && (source === "studio" || source.startsWith("studio:"));
+}
+
 function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onReserve, onEdit }: {
   employees: Employee[]; isInternal: boolean; isAdmin: boolean;
   onView: (id: number) => void; onOnboard: (emp: Employee) => void; onReserve: (id: number) => void;
@@ -417,7 +421,13 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
 }) {
   const { t } = useLocale();
   if (employees.length === 0) {
-    return <div className="text-center py-16 text-text-muted text-sm">{isInternal ? t("暂无内部员工", "No internal employees") : t("暂无备选员工", "No reserve employees")}</div>;
+    return (
+      <div className="text-center py-16 text-text-muted text-sm">
+        {isInternal
+          ? t("暂无内部员工", "No internal employees")
+          : t("暂无备选员工。Studio 推送的智能体安装后会出现在这里，可编辑或录用。", "No reserve employees. Studio-pushed agents appear here after install and can be edited or hired.")}
+      </div>
+    );
   }
 
   return (
@@ -435,6 +445,9 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
                   <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-500 rounded-full flex-shrink-0">AI</span>
                 ) : (
                   <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">{t("人类", "Human")}</span>
+                )}
+                {isStudioSourced(emp.source) && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-600 rounded-full flex-shrink-0">{t("Studio", "Studio")}</span>
                 )}
               </div>
               <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || t("未分配岗位", "No role assigned")}</p>
@@ -458,8 +471,7 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
             <ChevronRight size={16} className="text-text-muted group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
           </div>
 
-          {/* Admin Actions */}
-          {isAdmin && (
+          {(isAdmin || isStudioSourced(emp.source)) && (
             <div className="flex gap-2 mt-3 pt-3 border-t border-border" onClick={e => e.stopPropagation()}>
               <button onClick={() => onEdit(emp)}
                 className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
@@ -468,14 +480,14 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
               {!isInternal ? (
                 <button onClick={() => onOnboard(emp)}
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                  <UserCheck size={12} /> {t("匹配部门", "Match department")}
+                  <UserCheck size={12} /> {t("录用", "Hire")}
                 </button>
-              ) : (
+              ) : isAdmin ? (
                 <button onClick={() => onReserve(emp.id)}
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-amber-500/50 hover:text-amber-500 transition-colors">
                   <ArrowRightLeft size={12} /> {t("转入备选", "Move to reserve")}
                 </button>
-              )}
+              ) : null}
               <button onClick={() => onView(emp.id)}
                 className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
                 {t("详情", "Details")}
@@ -490,12 +502,17 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
 
 function TalentGrid({ talents, onRecruit, isAdmin }: { talents: TalentItem[]; onRecruit: (id: number) => void; isAdmin: boolean }) {
   const { t } = useLocale();
-  if (talents.length === 0) {
-    return <div className="text-center py-16 text-text-muted text-sm">{t("暂无可用人才", "No available talent")}</div>;
+  const marketTalents = talents.filter(item => !isStudioSourced(item.source));
+  if (marketTalents.length === 0) {
+    return (
+      <div className="text-center py-16 text-text-muted text-sm">
+        {t("暂无可用人才。Studio 推送的智能体在「备选员工」中编辑 / 录用，不会出现在人才市场。", "No available talent. Studio-pushed agents are edited or hired under Reserve employees, not the talent market.")}
+      </div>
+    );
   }
 
-  const humanTalents = talents.filter(t => t.talent_type === "human");
-  const aiTalents = talents.filter(t => t.talent_type === "ai");
+  const humanTalents = marketTalents.filter(t => t.talent_type === "human");
+  const aiTalents = marketTalents.filter(t => t.talent_type === "ai");
 
   return (
     <div className="space-y-8">
@@ -839,7 +856,7 @@ function EditEmployeeModal({ employee, departments, onCancel, onSave }: {
           {isReserve && (
             <button onClick={() => onSave(form, true)}
               className="flex-1 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-              {t("入职到部门", "Onboard to department")}
+              {t("录用", "Hire")}
             </button>
           )}
         </div>

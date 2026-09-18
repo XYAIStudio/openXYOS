@@ -34,6 +34,8 @@ async function main() {
   const { orgRoutes } = await import("../backend/routes/org");
   const { employeeRoutes } = await import("../backend/routes/employees");
   const { xyaiRoutes } = await import("../backend/routes/xyai");
+  const { talentRoutes } = await import("../backend/routes/talent");
+  const { knowledgeRoutes } = await import("../backend/routes/knowledge");
   const { signToken } = await import("../backend/middleware");
   await initDatabase();
 
@@ -52,6 +54,8 @@ async function main() {
   app.use("/api/org", orgRoutes);
   app.use("/api/employees", employeeRoutes);
   app.use("/api/xyai", xyaiRoutes);
+  app.use("/api/talent", talentRoutes);
+  app.use("/api/knowledge", knowledgeRoutes);
   const server = app.listen(0, "127.0.0.1");
   let baseUrl = "";
 
@@ -220,7 +224,110 @@ async function main() {
     const outsiderEmployees = collectEmployees((await outsiderTree.json() as any).data);
     assert.equal(outsiderEmployees.some((item: any) => item.id === employeeId), false, "cross-tenant org tree does not include the agent");
 
-    console.log("org canvas + studio reserve employee + shared membership tests passed");
+    const talentRow = dbGet("SELECT * FROM talent_pool WHERE id = ?", [importedBody.data.talent_id]) as any;
+    assert.equal(talentRow.status, "recruited", "studio import lands as recruited, not available");
+    assert.equal(talentRow.source, "studio");
+    assert.equal(talentRow.integration_type, "studio-interop");
+    const market = await request(tokenA, "/api/talent");
+    const marketBody = await market.json() as any;
+    assert.equal(
+      (marketBody.data || []).some((item: any) => item.id === importedBody.data.talent_id),
+      false,
+      "studio-pushed talent does not appear in 人才市场",
+    );
+
+    const userEdit = await request(tokenUser, `/api/org/employees/${employeeId}`, {
+      method: "PUT",
+      body: JSON.stringify({ role: "普通用户可改 Studio 备选" }),
+    });
+    expectStatus(userEdit.status, 200, "non-admin can edit studio-sourced reserve employee");
+
+    const orphanHuman = Number(dbRun(
+      "INSERT INTO employees (company_id, name, role, employee_type, status, employment_category, tenant_id) VALUES (1, '无主员工', '专员', 'human', 'active', 'internal', ?)",
+      [tenantA],
+    ).lastInsertRowid);
+    const userBlocked = await request(tokenUser, `/api/org/employees/${orphanHuman}`, {
+      method: "PUT",
+      body: JSON.stringify({ role: "不应成功" }),
+    });
+    expectStatus(userBlocked.status, 404, "non-admin cannot edit non-studio employee without user_id");
+
+    const onboarded = await request(tokenUser, `/api/employees/${employeeId}/onboard`, {
+      method: "POST",
+      body: JSON.stringify({ department_id: rootBody.data.id, role: "录用岗位" }),
+    });
+    expectStatus(onboarded.status, 200, "录用 onboards studio reserve to internal");
+    const afterHire = dbGet("SELECT * FROM employees WHERE id = ?", [employeeId]) as any;
+    assert.equal(afterHire.employment_category, "internal");
+    assert.equal(afterHire.role, "录用岗位");
+
+    const wrapped = await request(tokenA, "/api/xyai/agents/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        tenant_id: 1,
+        asset: {
+          id: "interop-wrapped-01",
+          kind: "agent",
+          name: "包装体智能体",
+          description: "旧 Studio {asset} 包",
+          payload: { agentId: "agent-wrapped", skills: ["对话"] },
+        },
+      }),
+    });
+    expectStatus(wrapped.status, 201, "legacy { asset } body still imports");
+    const wrappedBody = await wrapped.json() as any;
+    const wrappedEmp = dbGet("SELECT * FROM employees WHERE id = ?", [wrappedBody.data.employee_id]) as any;
+    assert.equal(wrappedEmp.source, "studio:interop-wrapped-01");
+    assert.equal(wrappedEmp.employment_category, "reserve");
+
+    const kbImported = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        name: "政策库",
+        description: "Studio 推送的知识库",
+        external_id: "kb-policy-01",
+        payload: { kbId: "kb-local-1", mountKind: "local", sourceRoot: "/docs/policy" },
+      }),
+    });
+    expectStatus(kbImported.status, 201, "studio knowledge import creates file + note");
+    const kbBody = await kbImported.json() as any;
+    assert.equal(kbBody.data.folder, "/");
+    assert.ok(kbBody.data.file_id);
+    assert.ok(kbBody.data.note_id);
+
+    const files = await request(tokenA, "/api/knowledge/files/list?folder=/");
+    const filesBody = await files.json() as any;
+    assert.ok((filesBody.data || []).some((item: any) => item.id === kbBody.data.file_id), "imported KB appears in files list folder=/");
+
+    const notes = await request(tokenA, "/api/knowledge");
+    const notesBody = await notes.json() as any;
+    assert.ok((notesBody.data || []).some((item: any) => item.id === kbBody.data.note_id), "imported KB appears in notes list");
+
+    const kbAgain = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        name: "政策库·修订",
+        external_id: "kb-policy-01",
+      }),
+    });
+    expectStatus(kbAgain.status, 200, "knowledge import is idempotent on external_id");
+    const kbAgainBody = await kbAgain.json() as any;
+    assert.equal(Number(kbAgainBody.data.file_id), Number(kbBody.data.file_id));
+    const fileCount = (dbAll("SELECT id FROM knowledge_files WHERE tenant_id = ? AND external_id = ?", [tenantA, "kb-policy-01"]) as any[]).length;
+    assert.equal(fileCount, 1, "knowledge file import stays idempotent");
+
+    const kbNoName = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio", "Accept-Language": "en" },
+      body: JSON.stringify({ description: "missing name" }),
+    });
+    expectStatus(kbNoName.status, 400, "knowledge import requires name");
+    assert.equal((await kbNoName.json() as any).error, "Knowledge base name is required");
+
+    console.log("org canvas + studio reserve employee + knowledge import tests passed");
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve()));
     fs.rmSync(tempRoot, { recursive: true, force: true });

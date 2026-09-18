@@ -1479,6 +1479,10 @@ function runMigrations() {
     try { db.run("ALTER TABLE employees ADD COLUMN source TEXT"); } catch(e) {}
     try { db.run("CREATE INDEX IF NOT EXISTS idx_talent_pool_external ON talent_pool(tenant_id, source, external_id)"); } catch(e) {}
     try { db.run("CREATE INDEX IF NOT EXISTS idx_employees_source ON employees(tenant_id, source)"); } catch(e) {}
+    try { db.run("ALTER TABLE knowledge_files ADD COLUMN external_id TEXT"); } catch(e) {}
+    try { db.run("ALTER TABLE knowledge_notes ADD COLUMN external_id TEXT"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_kf_external ON knowledge_files(tenant_id, external_id)"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_kn_external ON knowledge_notes(tenant_id, external_id)"); } catch(e) {}
 
     saveDb();
     console.log("[迁移] 员工管理（人才管理）表已就绪");
@@ -1547,6 +1551,10 @@ function runMigrations() {
     `);
     try { db.run('CREATE INDEX IF NOT EXISTS idx_kf_tenant ON knowledge_files(tenant_id, status)'); } catch(e) {}
     try { db.run('CREATE INDEX IF NOT EXISTS idx_kf_folder ON knowledge_files(tenant_id, folder)'); } catch(e) {}
+    try { db.run("ALTER TABLE knowledge_files ADD COLUMN external_id TEXT"); } catch(e) {}
+    try { db.run("ALTER TABLE knowledge_notes ADD COLUMN external_id TEXT"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_kf_external ON knowledge_files(tenant_id, external_id)"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_kn_external ON knowledge_notes(tenant_id, external_id)"); } catch(e) {}
 
     // 知识库文件夹表
     db.run(`

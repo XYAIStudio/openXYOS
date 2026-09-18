@@ -18,6 +18,8 @@ interface Employee {
   position_level_id?: number; position_sequence?: string;
   is_online?: boolean; pid?: string; avatar_url?: string;
   user_id?: number;
+  source?: string;
+  employment_category?: string;
 }
 
 interface Department {
@@ -64,9 +66,14 @@ export default function EmployeeDetailPage() {
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<number>>(new Set());
   const [skillCategory, setSkillCategory] = useState("all");
 
-  // 权限判断：管理员 或 本人（employee.user_id 匹配当前用户）
+  // 管理员、本人，或 Studio 推送的备选员工（import 不写 user_id 时普通用户也能改）
   const isOwnProfile = !!(user && employee && employee.user_id === user.id);
-  const canEdit = isAdmin || isOwnProfile;
+  const isStudioReserve = !!(
+    employee &&
+    employee.employment_category === "reserve" &&
+    (employee.source === "studio" || (employee.source || "").startsWith("studio:"))
+  );
+  const canEdit = isAdmin || isOwnProfile || isStudioReserve;
 
   // Edit form state
   const [editName, setEditName] = useState("");

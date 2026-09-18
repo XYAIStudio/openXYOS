@@ -151,23 +151,33 @@ orgRoutes.put("/departments/reorder", requireAdmin, (req: AuthRequest, res) => {
   } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
-// 员工信息编辑（超级管理员可跨租户，管理员可改本租户，普通用户仅可改自己）
+function isStudioSourcedReserve(emp: { source?: string | null; employment_category?: string | null } | undefined): boolean {
+  if (!emp) return false;
+  const source = String(emp.source || "");
+  return emp.employment_category === "reserve" && (source === "studio" || source.startsWith("studio:"));
+}
+
+function findEditableEmployee(eid: string, user: { id: number; role: string; tenant_id: number }): any {
+  if (user.role === "super_admin") {
+    return dbGet("SELECT * FROM employees WHERE id = ?", [eid]);
+  }
+  if (user.role === "admin") {
+    return dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ?", [eid, user.tenant_id]);
+  }
+  const own = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND user_id = ?", [eid, user.tenant_id, user.id]);
+  if (own) return own;
+  const studio = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ?", [eid, user.tenant_id]) as any;
+  return isStudioSourcedReserve(studio) ? studio : undefined;
+}
+
+// 员工信息编辑（超级管理员可跨租户，管理员可改本租户，普通用户可改自己或 Studio 备选员工）
 orgRoutes.put("/employees/:id", (req: AuthRequest, res) => {
   try {
     const eid = req.params.id;
     const user = req.user!;
     const isSuperAdmin = user.role === "super_admin";
-    const isAdmin = user.role === "admin";
 
-    // 按角色权限获取员工：超级管理员可查任意，管理员查本租户，普通用户仅查自己
-    let emp: any;
-    if (isSuperAdmin) {
-      emp = dbGet("SELECT * FROM employees WHERE id = ?", [eid]);
-    } else if (isAdmin) {
-      emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ?", [eid, user.tenant_id]);
-    } else {
-      emp = dbGet("SELECT * FROM employees WHERE id = ? AND tenant_id = ? AND user_id = ?", [eid, user.tenant_id, user.id]);
-    }
+    const emp = findEditableEmployee(eid, user);
     if (!emp) return res.status(404).json({ success: false, error: orgError(req, "员工不存在或无权限", "Employee not found or access is denied") });
 
     const { name, role, description, skills, agent_type, department_id, employee_type, avatar_emoji, status } = req.body;
