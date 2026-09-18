@@ -34,6 +34,8 @@ async function main() {
   const { orgRoutes } = await import("../backend/routes/org");
   const { employeeRoutes } = await import("../backend/routes/employees");
   const { xyaiRoutes } = await import("../backend/routes/xyai");
+  const { talentRoutes } = await import("../backend/routes/talent");
+  const { knowledgeRoutes } = await import("../backend/routes/knowledge");
   const { signToken } = await import("../backend/middleware");
   await initDatabase();
 
@@ -52,6 +54,8 @@ async function main() {
   app.use("/api/org", orgRoutes);
   app.use("/api/employees", employeeRoutes);
   app.use("/api/xyai", xyaiRoutes);
+  app.use("/api/talent", talentRoutes);
+  app.use("/api/knowledge", knowledgeRoutes);
   const server = app.listen(0, "127.0.0.1");
   let baseUrl = "";
 
@@ -220,7 +224,137 @@ async function main() {
     const outsiderEmployees = collectEmployees((await outsiderTree.json() as any).data);
     assert.equal(outsiderEmployees.some((item: any) => item.id === employeeId), false, "cross-tenant org tree does not include the agent");
 
-    console.log("org canvas + studio reserve employee + shared membership tests passed");
+    const talentAfterImport = dbGet("SELECT * FROM talent_pool WHERE id = ?", [importedBody.data.talent_id]) as any;
+    assert.equal(talentAfterImport.status, "recruited", "studio import marks talent recruited, not available");
+    const market = await request(tokenA, "/api/talent");
+    const marketBody = await market.json() as any;
+    assert.equal((marketBody.data || []).some((item: any) => item.id === importedBody.data.talent_id), false, "studio-pushed talent is hidden from 人才市场");
+
+    const recruitStudio = await request(tokenA, `/api/talent/${importedBody.data.talent_id}/recruit`, { method: "POST" });
+    expectStatus(recruitStudio.status, 400, "招募 is not used for studio-pushed agents");
+    assert.match((await recruitStudio.json() as any).error, /备选员工|reserve/i);
+
+    const userEdit = await request(tokenUser, `/api/org/employees/${employeeId}`, {
+      method: "PUT",
+      body: JSON.stringify({ description: "普通用户也可编辑 Studio 备选员工" }),
+    });
+    expectStatus(userEdit.status, 200, "org editor can edit studio reserve employee without user_id");
+
+    const otherHuman = Number(dbRun(
+      "INSERT INTO employees (company_id, name, role, employee_type, status, employment_category, tenant_id) VALUES (1, '他人', '专员', 'human', 'active', 'internal', ?)",
+      [tenantA],
+    ).lastInsertRowid);
+    const userEditOther = await request(tokenUser, `/api/org/employees/${otherHuman}`, {
+      method: "PUT",
+      body: JSON.stringify({ name: "不应成功" }),
+    });
+    expectStatus(userEditOther.status, 404, "non-admin cannot edit unrelated employees");
+
+    const hired = await request(tokenUser, `/api/employees/${employeeId}/onboard`, {
+      method: "POST",
+      body: JSON.stringify({ department_id: rootBody.data.id, role: "增长负责人" }),
+    });
+    expectStatus(hired.status, 200, "录用 onboards studio reserve employee");
+    const afterHire = dbGet("SELECT * FROM employees WHERE id = ?", [employeeId]) as any;
+    assert.equal(afterHire.employment_category, "internal");
+    assert.equal(Number(afterHire.department_id), Number(rootBody.data.id));
+
+    const alreadyHired = await request(tokenA, `/api/employees/${employeeId}/onboard`, { method: "POST" });
+    expectStatus(alreadyHired.status, 400, "already hired employee cannot be onboarded again");
+
+    const wrapped = await request(tokenA, "/api/xyai/agents/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        tenant_id: tenantA,
+        asset: {
+          id: "interop-general-01",
+          kind: "agent",
+          name: "通用智能体",
+          description: "AI智能助手",
+          payload: { agentId: "agent-general", skills: ["对话", "总结"], role: "助手" },
+        },
+      }),
+    });
+    expectStatus(wrapped.status, 201, "asset-wrapper studio payload imports to reserve");
+    const wrappedBody = await wrapped.json() as any;
+    const wrappedTalent = dbGet("SELECT * FROM talent_pool WHERE id = ?", [wrappedBody.data.talent_id]) as any;
+    assert.equal(wrappedTalent.status, "recruited");
+    assert.equal(JSON.parse(wrappedTalent.capabilities).schema, "openxyos.studio-agent.v1");
+    const wrappedEmp = dbGet("SELECT * FROM employees WHERE id = ?", [wrappedBody.data.employee_id]) as any;
+    assert.equal(wrappedEmp.employment_category, "reserve");
+    assert.equal(wrappedEmp.source, "studio:interop-general-01");
+
+    const kbDenied = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      body: JSON.stringify({ name: "政策库" }),
+    });
+    expectStatus(kbDenied.status, 403, "knowledge import requires interop header");
+
+    const kbImported = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        asset: {
+          id: "kb-policy-01",
+          kind: "knowledge-mount",
+          name: "政策库",
+          description: "合规政策挂接",
+          payload: { kbId: "kb-policy-01", mountKind: "local", sourceRoot: "/docs/policy" },
+        },
+      }),
+    });
+    expectStatus(kbImported.status, 201, "knowledge import creates listable file");
+    const kbBody = await kbImported.json() as any;
+    assert.ok(kbBody.data.file_id);
+    assert.equal(kbBody.data.folder, "/");
+
+    const files = await request(tokenA, "/api/knowledge/files/list?folder=/");
+    expectStatus(files.status, 200, "knowledge file list");
+    const filesBody = await files.json() as any;
+    const listed = (filesBody.data || []).find((item: any) => item.id === kbBody.data.file_id);
+    assert.ok(listed, "installed Studio KB appears in GET /api/knowledge/files/list?folder=/");
+    assert.equal(listed.original_name, "政策库");
+    assert.equal(listed.folder, "/");
+    assert.equal(listed.external_id, "kb-policy-01");
+
+    const notes = await request(tokenA, "/api/knowledge");
+    const notesBody = await notes.json() as any;
+    assert.ok((notesBody.data || []).some((item: any) => item.id === kbBody.data.note_id), "installed Studio KB note is listed");
+
+    const kbAgain = await request(tokenA, "/api/xyai/knowledge/import", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        name: "政策库·修订",
+        external_id: "kb-policy-01",
+        description: "更新后的政策库",
+      }),
+    });
+    expectStatus(kbAgain.status, 200, "knowledge import is idempotent by external_id");
+    const kbAgainBody = await kbAgain.json() as any;
+    assert.equal(Number(kbAgainBody.data.file_id), Number(kbBody.data.file_id));
+    const fileCount = (dbAll("SELECT id FROM knowledge_files WHERE tenant_id = ? AND external_id = ?", [tenantA, "kb-policy-01"]) as any[]).length;
+    assert.equal(fileCount, 1, "studio KB import stays idempotent");
+
+    const outsiderFiles = await request(tokenB, "/api/knowledge/files/list?folder=/");
+    const outsiderFilesBody = await outsiderFiles.json() as any;
+    assert.equal((outsiderFilesBody.data || []).some((item: any) => item.id === kbBody.data.file_id), false, "cross-tenant cannot see imported KB");
+
+    const inboxKb = await request(tokenA, "/api/xyai/inbox", {
+      method: "POST",
+      headers: { "X-XYAI-Interop": "studio" },
+      body: JSON.stringify({
+        asset: { id: "kb-inbox-02", kind: "knowledge-mount", name: "行业语料", description: "inbox 路由导入" },
+      }),
+    });
+    expectStatus(inboxKb.status, 201, "inbox routes knowledge-mount to knowledge import");
+    const inboxKbBody = await inboxKb.json() as any;
+    const inboxListed = ((await (await request(tokenA, "/api/knowledge/files/list?folder=/")).json() as any).data || [])
+      .some((item: any) => item.id === inboxKbBody.data.file_id);
+    assert.ok(inboxListed, "inbox-installed KB appears in folder=/ list");
+
+    console.log("org canvas + studio reserve edit/hire + knowledge import tests passed");
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve()));
     fs.rmSync(tempRoot, { recursive: true, force: true });

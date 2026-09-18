@@ -18,6 +18,8 @@ interface Employee {
   position_level_id?: number; position_sequence?: string;
   is_online?: boolean; pid?: string; avatar_url?: string;
   user_id?: number;
+  source?: string;
+  employment_category?: string;
 }
 
 interface Department {
@@ -64,9 +66,12 @@ export default function EmployeeDetailPage() {
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<number>>(new Set());
   const [skillCategory, setSkillCategory] = useState("all");
 
-  // 权限判断：管理员 或 本人（employee.user_id 匹配当前用户）
+  // 权限判断：管理员、本人，或 Studio/备选 AI（无 user_id 的组织资产）
   const isOwnProfile = !!(user && employee && employee.user_id === user.id);
-  const canEdit = isAdmin || isOwnProfile;
+  const isStudioSource = String(employee?.source || "").toLowerCase() === "studio"
+    || String(employee?.source || "").toLowerCase() === "xyai-studio"
+    || String(employee?.source || "").startsWith("studio:");
+  const canEdit = isAdmin || isOwnProfile || isStudioSource || (employee?.employment_category === "reserve" && employee?.employee_type === "ai" && !employee?.user_id);
 
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -199,15 +204,39 @@ export default function EmployeeDetailPage() {
   const handleSave = async () => {
     if (!id || !editName.trim()) return;
     setSaving(true);
-    await authFetch(`/api/org/employees/${id}`, {
+    const r = await authFetch(`/api/org/employees/${id}`, {
       method: "PUT",
       body: JSON.stringify({
         name: editName, role: editRole, description: editDescription,
         avatar_emoji: editAvatar, department_id: editDepartmentId || null,
       }),
     });
+    const d = await r.json();
     setSaving(false);
+    if (!d.success) {
+      alert(d.error || t("保存失败", "Save failed"));
+      return;
+    }
     setEditing(false);
+    notifyWorkforceChanged();
+    fetchData();
+  };
+
+  const handleHire = async () => {
+    if (!id) return;
+    if (!confirm(t("确认录用该备选员工为内部员工？", "Hire this reserve employee as internal staff?"))) return;
+    const r = await authFetch(`/api/employees/${id}/onboard`, {
+      method: "POST",
+      body: JSON.stringify({
+        department_id: editDepartmentId || employee?.department_id || undefined,
+        role: editRole || employee?.role || undefined,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      alert(d.error || t("录用失败", "Hire failed"));
+      return;
+    }
     notifyWorkforceChanged();
     fetchData();
   };
@@ -291,6 +320,9 @@ export default function EmployeeDetailPage() {
           <div className="flex gap-2">
             {canEdit && !editing && (
               <button onClick={() => setEditing(true)} className="px-4 py-2 bg-white/20 text-white text-sm rounded-lg hover:bg-white/30">{t("编辑", "Edit")}</button>
+            )}
+            {canEdit && employee.employment_category === "reserve" && (
+              <button onClick={handleHire} className="px-4 py-2 bg-white text-blue-600 text-sm rounded-lg hover:bg-blue-50">{t("录用", "Hire")}</button>
             )}
             {isAdmin && employee.status === "active" && (
               <button onClick={handleOffboardPreview} className="flex items-center gap-1.5 px-4 py-2 bg-red-500/30 text-white text-sm rounded-lg hover:bg-red-500/50 font-medium">
