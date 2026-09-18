@@ -71,16 +71,33 @@ orgRoutes.get("/departments", (req: AuthRequest, res) => {
   } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
+function departmentDepth(parentId: number | null | undefined, tenantId: number): number {
+  if (!parentId) return 1;
+  let depth = 1;
+  let current: number | null = Number(parentId);
+  const seen = new Set<number>();
+  while (current) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    depth += 1;
+    const parent = dbGet("SELECT parent_id FROM departments WHERE id = ? AND tenant_id = ?", [current, tenantId]) as { parent_id?: number | null } | undefined;
+    current = parent?.parent_id ? Number(parent.parent_id) : null;
+  }
+  return depth;
+}
+
 orgRoutes.post("/departments", requireAdmin, (req: AuthRequest, res) => {
   try {
     const { name, parent_id, sort_order, description, department_code, cost_center, budget_allocation, headcount, function_type, level } = req.body;
     if (!name) return res.status(400).json({ success: false, error: orgError(req, "部门名称必填", "Department name is required") });
 
+    const parentId = parent_id || null;
+    const computedLevel = level || departmentDepth(parentId, req.user!.tenant_id);
     const result = dbRun(
       `INSERT INTO departments (company_id, name, parent_id, sort_order, description, department_code, cost_center, budget_allocation, headcount, function_type, level, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [1, name, parent_id || null, sort_order || 0, description || "", department_code || null, cost_center || null, budget_allocation || 0, headcount || 0, function_type || "functional", level || 1, req.user!.tenant_id]
+      [1, name, parentId, sort_order || 0, description || "", department_code || null, cost_center || null, budget_allocation || 0, headcount || 0, function_type || "functional", computedLevel, req.user!.tenant_id]
     );
-    res.json({ success: true, data: { id: result.lastInsertRowid } });
+    res.json({ success: true, data: { id: result.lastInsertRowid, parent_id: parentId, level: computedLevel } });
   } catch { res.status(500).json({ success: false, error: orgError(req, "组织服务暂时不可用，请稍后重试", "Organization service is temporarily unavailable. Please try again") }); }
 });
 
@@ -162,7 +179,7 @@ orgRoutes.put("/employees/:id", (req: AuthRequest, res) => {
     if (description !== undefined) { updates.push("description = ?"); params.push(description); }
     if (skills !== undefined) { updates.push("skills = ?"); params.push(skills); }
     if (agent_type !== undefined) { updates.push("agent_type = ?"); params.push(agent_type || null); }
-    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id); }
+    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id || null); }
     if (employee_type !== undefined) { updates.push("employee_type = ?"); params.push(employee_type); }
     if (avatar_emoji !== undefined) { updates.push("avatar_emoji = ?"); params.push(avatar_emoji); }
     if (status !== undefined) { updates.push("status = ?"); params.push(status); }

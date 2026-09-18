@@ -1475,6 +1475,10 @@ function runMigrations() {
     `);
     try { db.run('CREATE INDEX IF NOT EXISTS idx_talent_pool_tenant ON talent_pool(tenant_id, talent_type)'); } catch(e) {}
     try { db.run('CREATE INDEX IF NOT EXISTS idx_talent_pool_status ON talent_pool(status)'); } catch(e) {}
+    try { db.run("ALTER TABLE talent_pool ADD COLUMN external_id TEXT"); } catch(e) {}
+    try { db.run("ALTER TABLE employees ADD COLUMN source TEXT"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_talent_pool_external ON talent_pool(tenant_id, source, external_id)"); } catch(e) {}
+    try { db.run("CREATE INDEX IF NOT EXISTS idx_employees_source ON employees(tenant_id, source)"); } catch(e) {}
 
     saveDb();
     console.log("[迁移] 员工管理（人才管理）表已就绪");
