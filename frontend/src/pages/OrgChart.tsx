@@ -1540,10 +1540,24 @@ function AddEmpModal({
     try {
       if (mode === "reserve") {
         if (!selectedReserveId) return;
-        await authFetch(`/api/org/employees/${selectedReserveId}`, {
+        const assigned = await authFetch(`/api/org/employees/${selectedReserveId}`, {
           method: "PUT",
           body: JSON.stringify({ department_id: departmentId }),
         });
+        const assignedBody = await assigned.json();
+        if (!assignedBody.success) {
+          alert(assignedBody.error || t("保存失败", "Save failed"));
+          return;
+        }
+        const hired = await authFetch(`/api/employees/${selectedReserveId}/onboard`, {
+          method: "POST",
+          body: JSON.stringify({ department_id: departmentId }),
+        });
+        const hiredBody = await hired.json();
+        if (!hiredBody.success) {
+          alert(hiredBody.error || t("录用失败", "Hire failed"));
+          return;
+        }
       } else {
         if (!name.trim()) return;
         await authFetch("/api/org/employees", {
@@ -1678,7 +1692,7 @@ function AddEmpModal({
             disabled={saving || (mode === "create" ? !name.trim() : !selectedReserveId)}
             className="px-5 py-2 bg-blue-500 text-white text-sm rounded-xl hover:bg-blue-600 disabled:opacity-50"
           >
-            {saving ? t("保存中...", "Saving...") : mode === "reserve" ? t("加入部门", "Add to department") : t("创建", "Create")}
+            {saving ? t("保存中...", "Saving...") : mode === "reserve" ? t("录用", "Hire") : t("创建", "Create")}
           </button>
         </div>
       </div>

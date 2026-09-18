@@ -60,6 +60,11 @@ interface TalentStats {
 
 type TabKey = "internal" | "reserve" | "talent";
 
+function isStudioSource(source?: string): boolean {
+  const value = String(source || "").toLowerCase();
+  return value === "studio" || value === "xyai-studio" || value.startsWith("studio:");
+}
+
 export default function EmployeesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -214,6 +219,26 @@ export default function EmployeesPage() {
     setEditingEmployee(emp);
   }
 
+  async function handleHire(emp: Employee) {
+    if (!confirm(t("确认录用该备选员工为内部员工？", "Hire this reserve employee as internal staff?"))) return;
+    try {
+      const r = await authFetch(`/api/employees/${emp.id}/onboard`, {
+        method: "POST",
+        body: JSON.stringify({
+          department_id: emp.department_id || undefined,
+          role: emp.role || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!j.success) return alert(j.error || t("录用失败", "Hire failed"));
+      loadEmployees();
+      loadCatStats();
+      notifyWorkforceChanged();
+    } catch (e) {
+      alert(t("录用失败", "Hire failed"));
+    }
+  }
+
   async function handleReserve(empId: number) {
     if (!confirm(t("确认将该员工转入备选库？部门信息将被清除。", "Move this employee to the reserve pool? Their department assignment will be cleared."))) return;
     try {
@@ -226,7 +251,11 @@ export default function EmployeesPage() {
     if (!confirm(t("确认招募该人才？将加入备选员工库。", "Recruit this talent into the reserve employee pool?"))) return;
     try {
       const r = await authFetch(`/api/talent/${talentId}/recruit`, { method: "POST" });
-      if (r.ok) { loadTalent(); loadCatStats(); notifyWorkforceChanged(); }
+      const j = await r.json();
+      if (!r.ok || !j.success) return alert(j.error || t("招募失败", "Recruitment failed"));
+      loadTalent();
+      loadCatStats();
+      notifyWorkforceChanged();
     } catch (e) { alert(t("招募失败", "Recruitment failed")); }
   }
 
@@ -366,6 +395,7 @@ export default function EmployeesPage() {
             isAdmin={isAdmin}
             onView={(id) => navigate(`/employees/${id}`)}
             onOnboard={handleOnboard}
+            onHire={handleHire}
             onReserve={handleReserve}
             onEdit={setEditingEmployee}
           />
@@ -410,9 +440,9 @@ function StatCard({ label, count, sub, color }: { label: string; count: number; 
   );
 }
 
-function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onReserve, onEdit }: {
+function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onHire, onReserve, onEdit }: {
   employees: Employee[]; isInternal: boolean; isAdmin: boolean;
-  onView: (id: number) => void; onOnboard: (emp: Employee) => void; onReserve: (id: number) => void;
+  onView: (id: number) => void; onOnboard: (emp: Employee) => void; onHire: (emp: Employee) => void; onReserve: (id: number) => void;
   onEdit: (emp: Employee) => void;
 }) {
   const { t } = useLocale();
@@ -436,6 +466,9 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
                 ) : (
                   <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded-full flex-shrink-0">{t("人类", "Human")}</span>
                 )}
+                {isStudioSource(emp.source) && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-full flex-shrink-0">{t("Studio推送", "Studio")}</span>
+                )}
               </div>
               <p className="text-xs text-text-muted mt-0.5 truncate">{emp.role || t("未分配岗位", "No role assigned")}</p>
               {emp.department_name && (
@@ -458,23 +491,32 @@ function EmployeeList({ employees, isInternal, isAdmin, onView, onOnboard, onRes
             <ChevronRight size={16} className="text-text-muted group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
           </div>
 
-          {/* Admin Actions */}
-          {isAdmin && (
+          {(isAdmin || isStudioSource(emp.source)) && (
             <div className="flex gap-2 mt-3 pt-3 border-t border-border" onClick={e => e.stopPropagation()}>
               <button onClick={() => onEdit(emp)}
                 className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
                 <Pencil size={12} /> {t("编辑", "Edit")}
               </button>
               {!isInternal ? (
-                <button onClick={() => onOnboard(emp)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                  <UserCheck size={12} /> {t("匹配部门", "Match department")}
-                </button>
+                <>
+                  <button onClick={() => onHire(emp)}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
+                    <UserCheck size={12} /> {t("录用", "Hire")}
+                  </button>
+                  {isAdmin && !isStudioSource(emp.source) && (
+                    <button onClick={() => onOnboard(emp)}
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
+                      {t("匹配部门", "Match department")}
+                    </button>
+                  )}
+                </>
               ) : (
-                <button onClick={() => onReserve(emp.id)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-amber-500/50 hover:text-amber-500 transition-colors">
-                  <ArrowRightLeft size={12} /> {t("转入备选", "Move to reserve")}
-                </button>
+                isAdmin && (
+                  <button onClick={() => onReserve(emp.id)}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-amber-500/50 hover:text-amber-500 transition-colors">
+                    <ArrowRightLeft size={12} /> {t("转入备选", "Move to reserve")}
+                  </button>
+                )
               )}
               <button onClick={() => onView(emp.id)}
                 className="flex items-center justify-center gap-1 px-2 py-1.5 border border-border text-text-muted rounded-lg text-xs hover:border-primary/50 hover:text-primary transition-colors">
@@ -577,7 +619,9 @@ function TalentCard({ talent, onRecruit, isAdmin }: { talent: TalentItem; onRecr
         </div>
       )}
 
-      {isAdmin && (
+      {isAdmin && (talent.source === "studio" || talent.source === "xyai-studio") ? (
+        <p className="text-[11px] text-text-muted text-center py-2">{t("Studio 推送已在备选员工中，请编辑或录用", "Studio-pushed agents are in reserve staff — edit or hire them there.")}</p>
+      ) : isAdmin && (
         <button onClick={() => onRecruit(talent.id)}
           className="w-full flex items-center justify-center gap-1.5 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary hover:text-white transition-colors">
           <UserPlus size={13} /> {t("招募", "Recruit")}
@@ -839,7 +883,7 @@ function EditEmployeeModal({ employee, departments, onCancel, onSave }: {
           {isReserve && (
             <button onClick={() => onSave(form, true)}
               className="flex-1 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-              {t("入职到部门", "Onboard to department")}
+              {t("录用", "Hire")}
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@ import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, AuthRequest, requireAdmin } from "../middleware";
 import { localizedError } from "../utils/locale";
 import { logActivity } from "../services/notification";
+import { findEmployeeForOrgEdit } from "../services/workforce-access";
 import bcrypt from "bcryptjs";
 
 export const employeeRoutes = Router();
@@ -94,20 +95,26 @@ employeeRoutes.get("/stats/by-category", (req: AuthRequest, res) => {
   }
 });
 
-// 备选员工入职（reserve → internal）
+// 备选员工入职 / 录用（reserve → internal）
 employeeRoutes.post("/:id/onboard", (req: AuthRequest, res) => {
   try {
+    const emp = findEmployeeForOrgEdit(req.user!, req.params.id);
+    if (!emp) return res.status(404).json({ success: false, error: employeeError(req, "员工不存在或无权限", "Employee not found or access is denied") });
+    if (emp.employment_category === "internal") {
+      return res.status(400).json({ success: false, error: employeeError(req, "该员工已录用为内部员工", "This employee is already hired as internal staff") });
+    }
+
     const { department_id, role } = req.body;
     const updates: string[] = ["employment_category = 'internal'"];
     const params: any[] = [];
 
-    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id); }
+    if (department_id !== undefined) { updates.push("department_id = ?"); params.push(department_id || null); }
     if (role !== undefined) { updates.push("role = ?"); params.push(role); }
 
-    params.push(req.params.id, req.user!.tenant_id);
+    params.push(emp.id, emp.tenant_id);
     dbRun(`UPDATE employees SET ${updates.join(", ")} WHERE id = ? AND tenant_id = ?`, params);
 
-    res.json({ success: true });
+    res.json({ success: true, data: { id: emp.id, employment_category: "internal" } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: employeeError(req, "服务暂时不可用，请稍后重试", "Service is temporarily unavailable. Please try again") });
   }

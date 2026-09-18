@@ -2,6 +2,7 @@ import { Router } from "express";
 import { dbAll, dbGet, dbRun } from "../db";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware";
 import { localizedError } from "../utils/locale";
+import { isStudioEmployeeSource } from "../services/workforce-access";
 
 export const talentRoutes = Router();
 talentRoutes.use(authenticate);
@@ -51,8 +52,17 @@ talentRoutes.get("/stats", (req: AuthRequest, res) => {
 // 招募人才 → 加入备选员工库（仅管理员）
 talentRoutes.post("/:id/recruit", requireAdmin, (req: AuthRequest, res) => {
   try {
-    const talent = dbGet("SELECT * FROM talent_pool WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
+    const talent = dbGet("SELECT * FROM talent_pool WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]) as any;
     if (!talent) return res.status(404).json({ success: false, error: talentError(req, "人才不存在", "Talent not found") });
+    if (isStudioEmployeeSource(talent.source)) {
+      return res.status(400).json({
+        success: false,
+        error: talentError(req, "Studio 推送的智能体已在备选员工中，请直接编辑或录用，无需从人才市场招募", "Studio-pushed agents are already in the reserve pool. Edit or hire them there; talent-market recruit is only for available customized agents."),
+      });
+    }
+    if (talent.status !== "available") {
+      return res.status(400).json({ success: false, error: talentError(req, "该人才当前不可招募", "This talent is not available to recruit") });
+    }
 
     // 写入 employees 表（备选状态）
     const result = dbRun(
