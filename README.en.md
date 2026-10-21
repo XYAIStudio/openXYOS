@@ -6,7 +6,7 @@ Source repository: [github.com/XYAIStudio/openXYOS](https://github.com/XYAIStudi
 
 openXYOS is a streamlined open-source human-agent organization operating system derived from XYOS. It keeps multi-level enterprise structures, multi-tenancy, modular applications, governed human-agent collaboration, agent customization, direct/group chat, and editable example modules.
 
-> Status: community release candidate for local development and evaluation. It is not represented as production-ready.
+> Status: community release candidate for local development and evaluation. It is not for production. This site is the open-source community project openXYOS. It is not commercial XYOS and it is not FreeOS. Agent Studio is a module name only.
 
 ## Developer community
 
@@ -15,6 +15,8 @@ Welcome to the **XYAI Founders** WeCom group for openXYOS usage, extensions, and
 <p align="center">
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders WeCom QR" />
 </p>
+
+If the QR has expired, do not ask for a backup password. Use [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
 
 
 ## Runtime scope
@@ -39,7 +41,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Replace secret placeholders before startup. The client runs at `http://localhost:5174`; the API runs at `http://localhost:3000/api`.
+Replace `JWT_SECRET` and `COOKIE_SECRET` before startup, and do not commit `.env`. Demo data is off by default. For local evaluation only, set `SEED_DEMO_DATA=true` plus your own `SEED_ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD` (at least 12 characters each). The `replace-me` placeholders are not usable passwords. The client runs at `http://localhost:5174`; the API runs at `http://localhost:3000/api`.
 
 ## Verification
 

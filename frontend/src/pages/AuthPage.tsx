@@ -18,8 +18,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
-  const fillDemo = () => { setTab("login"); setEmail("demo@demo.com"); setPassword("openxyos-demo-2026"); };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -70,10 +68,8 @@ export default function AuthPage() {
             <p className="text-sm text-text-muted">{tx("登录或注册，开启AI驱动的智能管理", "Sign in or create an account to begin AI-native management.")}</p>
           </div>
 
-          <div className={`flex items-center gap-3 bg-primary-bg border border-primary-light ${R} px-4 py-3 mb-5 text-[13px] text-text`}>
-            <span className="text-lg shrink-0">🎮</span>
-            <span>{tx("Demo account:", "Demo account:")} <strong className="text-primary">demo@demo.com</strong></span>
-            <button onClick={fillDemo} className={`ml-auto px-3.5 py-2 bg-primary text-white text-xs font-semibold ${R} hover:opacity-90 whitespace-nowrap`}>{tx("一键填入", "Fill demo")}</button>
+          <div className={`bg-primary-bg border border-primary-light ${R} px-4 py-3 mb-5 text-[13px] text-text leading-relaxed`}>
+            {tx("公开站点不提供测试账号或密码。演示数据默认关闭。本地评估请在 .env 自行设置至少 12 位的 SEED_DEMO_PASSWORD，不要把密码写进页面或仓库。", "This public site does not publish a test email or password. Demo data is off by default. For local evaluation, set your own SEED_DEMO_PASSWORD of at least 12 characters in .env. Do not put that password in the page or the repository.")}
           </div>
 
           <div className={`flex bg-bg-card border border-border ${R} p-1 mb-6`}>

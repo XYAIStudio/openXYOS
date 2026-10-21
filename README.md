@@ -19,8 +19,12 @@ openXYOS 是从 XYOS 精简而来的开源人机组织操作系统。它保留�
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders 交流群（企业微信）二维码" />
 </p>
 
+二维码失效时，不要索取备用密码。请改走 [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12)。
+
 
 ## 首页 Hero：为组织智能化管理而生
+
+社区发布候选，不用于生产。本站是开源社区项目 openXYOS，不是商业 XYOS，也不是 FreeOS。Agent Studio 只是模块名称。
 
 ### 为人机共融组织而生的开源操作系统
 
@@ -44,7 +48,12 @@ flowchart LR
 ```
 
 ```bash
+# Node.js >= 20.19
 npm ci
+cp .env.example .env
+# 编辑 .env：替换 JWT_SECRET 与 COOKIE_SECRET，不要提交该文件。
+# 演示数据默认关闭。仅本地评估时设置 SEED_DEMO_DATA=true，
+# 并填写至少 12 位的自定义 SEED_DEMO_PASSWORD。不要使用仓库里的占位值。
 npm run dev
 ```
 
@@ -52,7 +61,7 @@ npm run dev
 
 ## 智能体定制演示：让智能体从设想成为组织成员
 
-首页的“让智能体从设想成为组织成员”区域提供了可交互的 Agent Studio 演示。它展示公开版的通用使用路径：填写画像与资料、生成顾问型智能体、进入人才市场，再由管理员招募并补充岗位与部门信息。演示中的资料、名称和数值均为示例，不应替代实际业务审批、数据授权或人工确认。
+首页的“让智能体从设想成为组织成员”区域是**动画 / 示例演示**。它播放公开版的通用路径：填写画像与资料、生成顾问型智能体、进入人才市场，再演示招募并补充岗位与部门信息。画面中的招募、确认、入组和资料名称都是示例，不会提交真实组织审批，也不代替数据授权或人工确认。ima 知识库在演示里标为「已关联、待运行验证」，没有绿色成功勾。
 
 <p align="center">
   <img src="frontend/public/assets/openxyos-agent-journey-demo.png" width="100%" alt="openXYOS 智能体定制演示：画像与资料生成顾问型智能体" />
@@ -67,7 +76,7 @@ flowchart LR
     E --> F[补充岗位与部门后进入组织协作]
 ```
 
-在本地运行的首页中，可选择“体验智能体定制”切换演示步骤；进入系统后，在“智能体定制”和“人机资源”模块继续进行实际配置与招募。详细操作请阅读[中文操作指南](docs/guides/operation-guide.zh-CN.md#9-智能体定制)或[English operation guide](docs/guides/operation-guide.en.md#9-agent-studio)。
+在本地运行的首页中，可选择“查看示例演示”切换动画步骤。公开页面不提供测试邮箱或密码，也不要求先粘贴 API Key。使用自有账号登录后，再在“智能体定制”和“人机资源”模块做实际配置与招募。详细操作请阅读[中文操作指南](docs/guides/operation-guide.zh-CN.md#9-智能体定制)或[English operation guide](docs/guides/operation-guide.en.md#9-agent-studio)。
 
 > 当前状态：社区发布候选版，适合本地开发、产品评估和协同完善；尚不宣称可直接用于生产。生产部署前仍需完成安全评审、持久化数据库、备份恢复和容量验证。
 
@@ -107,7 +116,7 @@ npm run dev
 
 Windows PowerShell：`Copy-Item .env.example .env`，然后执行 `npm run dev`。首次启动前替换 `.env` 中的 `JWT_SECRET` 和 `COOKIE_SECRET`。前端地址为 `http://localhost:5174`，API 为 `http://localhost:3000/api`。
 
-演示数据默认关闭。仅本地评估时设置 `SEED_DEMO_DATA=true`，并提供至少 12 位的自定义密码。项目不内置管理员密码。
+演示数据默认关闭。仅本地评估时设置 `SEED_DEMO_DATA=true`，并提供至少 12 位的自定义 `SEED_ADMIN_PASSWORD` 与 `SEED_DEMO_PASSWORD`。`.env.example` 里的 `replace-me` 不能用来启动种子数据。项目不内置管理员密码，公开页面也不展示可用测试账号。
 
 ## 验证
 

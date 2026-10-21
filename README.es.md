@@ -16,6 +16,8 @@ openXYOS es un sistema operativo de código abierto para organizaciones humano�
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="QR WeCom XYAI Founders" />
 </p>
 
+Si el QR caducó, no pidas una contraseña de respaldo. Usa [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
+
 ## Alcance en tiempo de ejecución
 
 Tras iniciar sesión hay doce módulos: Espacio de trabajo, Anuncios, Organización, Recursos humano–IA, Habilidades y plugins, Colaboración, Agent Studio, Tareas, Conocimiento, Reflexión, Gobernanza y Ajustes.

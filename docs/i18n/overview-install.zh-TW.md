@@ -11,7 +11,7 @@ openXYOS 是面向人機組織的開源作業系統，提供多層級組織、�
 需求：Node.js 20.19 或更新版本。
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/XYAIStudio/openXYOS.git
 cd openXYOS
 npm ci
 cp .env.example .env
@@ -19,6 +19,8 @@ npm run dev
 ```
 
 Windows PowerShell 使用 `Copy-Item .env.example .env`。啟動前請在 `.env` 設定強度足夠的 `JWT_SECRET` 與 `COOKIE_SECRET`，且不要提交此檔案。瀏覽器網址為 `http://localhost:5174`，API 預設為 `http://localhost:3000/api`。
+
+示範資料預設關閉。僅在本機評估時設定 `SEED_DEMO_DATA=true`，並自行提供至少 12 個字元的 `SEED_ADMIN_PASSWORD` 與 `SEED_DEMO_PASSWORD`。`.env.example` 的 `replace-me` 不能當作密碼。公開倉庫與公開頁面都不提供內建帳號密碼。
 
 ## 驗證
 

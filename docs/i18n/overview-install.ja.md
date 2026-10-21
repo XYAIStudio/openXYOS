@@ -11,7 +11,7 @@ openXYOS は、人機組織のためのオープンソース・オペレーテ�
 前提条件：Node.js 20.19 以降。
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/XYAIStudio/openXYOS.git
 cd openXYOS
 npm ci
 cp .env.example .env
@@ -19,6 +19,8 @@ npm run dev
 ```
 
 Windows PowerShell では `Copy-Item .env.example .env` を使用してください。起動前に `.env` の `JWT_SECRET` と `COOKIE_SECRET` を強力な値へ変更し、このファイルをコミットしないでください。ブラウザは `http://localhost:5174`、API は標準で `http://localhost:3000/api` です。
+
+デモデータは既定で無効です。ローカル評価時のみ `SEED_DEMO_DATA=true` と、それぞれ 12 文字以上の独自 `SEED_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` を設定してください。`.env.example` の `replace-me` はパスワードとして使えません。公開リポジトリと公開サイトに組み込みの認証情報はありません。
 
 ## 検証
 

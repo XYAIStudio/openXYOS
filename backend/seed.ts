@@ -1,10 +1,17 @@
 import bcrypt from "bcryptjs";
 import { dbAll, dbGet, dbRun, getDb, saveDb } from "./db";
 
+const PUBLISHED_SEED_PLACEHOLDERS = new Set([
+  "replace-me",
+  "replace-me-with-a-unique-admin-password",
+  "replace-me-with-a-unique-demo-password",
+  "openxyos-demo-2026",
+]);
+
 function requiredSeedSecret(name: "SEED_ADMIN_PASSWORD" | "SEED_DEMO_PASSWORD"): string {
-  const value = process.env[name]?.trim();
-  if (!value || value.length < 12) {
-    throw new Error(`${name} must be at least 12 characters when SEED_DEMO_DATA=true`);
+  const value = process.env[name]?.trim() || "";
+  if (value.length < 12 || PUBLISHED_SEED_PLACEHOLDERS.has(value) || value.toLowerCase().includes("replace-me")) {
+    throw new Error(`${name} must be your own password of at least 12 characters when SEED_DEMO_DATA=true. Do not use a published placeholder.`);
   }
   return value;
 }
@@ -26,6 +33,10 @@ export function seedDatabase() {
     console.log("[seed] Demo data is disabled. Set SEED_DEMO_DATA=true to opt in.");
     return;
   }
+
+  // Reject missing, short, or previously published passwords before any demo write.
+  requiredSeedSecret("SEED_ADMIN_PASSWORD");
+  requiredSeedSecret("SEED_DEMO_PASSWORD");
 
   // Demo users, companies, departments and modules consistently belong to tenant #2.
   // Keep the tenant row present even when a prior partial seed left user data behind.

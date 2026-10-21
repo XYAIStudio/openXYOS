@@ -16,6 +16,8 @@ openXYOS は XYOS から絞り込んだ、人機組織向けのオープンソ�
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders WeCom QR" />
 </p>
 
+QR の有効期限が切れた場合は、予備のパスワードを求めず [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12) を使ってください。
+
 ## 実行スコープ
 
 サインイン後は次の 12 モジュールを利用できます：ワークスペース、お知らせ、組織、人機リソース、スキル／プラグイン、コラボレーション、エージェントスタジオ、タスク、ナレッジ、リフレクション、ガバナンス、設定。

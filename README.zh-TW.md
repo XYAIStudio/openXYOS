@@ -16,6 +16,8 @@ openXYOS 是從 XYOS 精簡而來的開源人機組織作業系統。它保留�
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders 交流群（企業微信）二維碼" />
 </p>
 
+二維碼失效時，請改走 [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12)，不要索取備用密碼。
+
 ## 執行範圍
 
 登入後提供十二個模組：工作臺、通知公告、組織架構、人機資源、技能外掛、溝通協作、智慧體自訂、任務管理、知識庫、反思引擎、治理引擎、系統設定。

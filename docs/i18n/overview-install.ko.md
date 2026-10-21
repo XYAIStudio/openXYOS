@@ -11,7 +11,7 @@ openXYOS는 인간과 AI 에이전트가 함께 일하는 조직을 위한 오�
 요구 사항: Node.js 20.19 이상.
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/XYAIStudio/openXYOS.git
 cd openXYOS
 npm ci
 cp .env.example .env
@@ -19,6 +19,8 @@ npm run dev
 ```
 
 Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다. 시작 전 `.env`의 `JWT_SECRET` 및 `COOKIE_SECRET`을 강력한 값으로 변경하고 해당 파일을 커밋하지 마십시오. 브라우저 주소는 `http://localhost:5174`, 기본 API 주소는 `http://localhost:3000/api`입니다.
+
+데모 데이터는 기본적으로 꺼져 있습니다. 로컬 평가 시에만 `SEED_DEMO_DATA=true`와 각각 12자 이상의 `SEED_ADMIN_PASSWORD`, `SEED_DEMO_PASSWORD`를 직접 설정하세요. `.env.example`의 `replace-me`는 비밀번호로 사용할 수 없습니다. 공개 저장소와 공개 사이트에는 기본 계정이 없습니다.
 
 ## 검증
 

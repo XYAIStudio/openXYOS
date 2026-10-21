@@ -6,15 +6,15 @@ This guide describes the local community-release interface. Available functions 
 
 Open `http://localhost:5174` to view the project overview, capabilities, Agent Studio demonstration, module list, and source entry points.
 
-1. Select **Try online**.
-2. To test model-enabled capabilities, choose a provider, enter your own API key, and select **Save and enter**. The key is not displayed again. To continue without a key, select **Explore basic features**.
-3. Select an administrator or standard-user demo perspective, or continue to **Sign in with another account**.
+1. Select **Try online**. The dialog is titled **Connect a model (optional)** and is marked **Animation / example demo**. Pasting an API key is not required to view the intelligent experience, and the public page does not collect keys.
+2. Select **View the example experience** to see the animation. Recruit and confirm controls are marked as examples and do not submit a real organization approval.
+3. **Demo account** only explains the policy: it does not enter a production system and does not publish a test email or password. For local evaluation, set `SEED_DEMO_DATA=true` and your own `SEED_DEMO_PASSWORD` of at least 12 characters in `.env`, then sign in with your own account.
 
-If the API is unavailable, run `npm run dev` from the repository root. Before using any model, confirm the provider, network path, and key permissions. Never paste keys into issues, screenshots, or source files.
+If the API is unavailable, run `npm ci`, copy `.env.example` to `.env`, replace the secrets, then run `npm run dev` from the repository root. Node.js 20.19 or later is required. Configure an optional model key after sign-in under **Settings → AI models**. Never paste keys into the public homepage, issues, screenshots, or source files.
 
 ## 2. Sign-in, sign-out, and permissions
 
-At `/auth`, enter an email address and password, accept the agreements, and select **Sign in**. Demo accounts exist only when demo seed data has been intentionally enabled. After sign-in, the sidebar shows only modules enabled for the tenant and available to the current user. Use **Sign out** in the header or sidebar to clear the local session.
+At `/auth`, enter your own email address and password, accept the agreements, and select **Sign in**. The page does not offer a one-click demo account. Demo accounts exist only when demo seed data has been intentionally enabled with a custom password of at least 12 characters. After sign-in, the sidebar shows only modules enabled for the tenant and available to the current user. Use **Sign out** in the header or sidebar to clear the local session.
 
 Administrators can manage modules, models, and users; seeing a module does not grant an ordinary user administrative permission. If **Module configuration failed to load** appears after sign-in, select **Reload**. If it persists, check the API health endpoint, whether `JWT_SECRET` changed after a server restart, and whether the browser retained an old session.
 

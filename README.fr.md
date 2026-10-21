@@ -16,6 +16,8 @@ Rejoignez le groupe **XYAI Founders** (WeCom / 企业微信) pour échanger sur 
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="QR WeCom XYAI Founders" />
 </p>
 
+Si le QR a expiré, ne demandez pas de mot de passe de secours. Utilisez [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
+
 ## Périmètre d’exécution
 
 Après connexion, douze modules : Espace de travail, Annonces, Organisation, Ressources humain–IA, Compétences & plugins, Collaboration, Agent Studio, Tâches, Connaissances, Réflexion, Gouvernance, Paramètres.

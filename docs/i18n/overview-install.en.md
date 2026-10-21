@@ -11,7 +11,7 @@ After sign-in, the product provides Workspace, Announcements, Organization, Huma
 Prerequisite: Node.js 20.19 or later.
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/XYAIStudio/openXYOS.git
 cd openXYOS
 npm ci
 cp .env.example .env
@@ -22,7 +22,7 @@ On Windows PowerShell, use `Copy-Item .env.example .env`. Before starting, set s
 
 ## Demo data and verification
 
-Demo data is for local evaluation only. Enable `SEED_DEMO_DATA=true`, set a custom demo password, then run the seed command. The public repository does not promise built-in administrator credentials.
+Demo data is for local evaluation only. Enable `SEED_DEMO_DATA=true` and set your own `SEED_ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD`, each at least 12 characters, before running the seed command. The `replace-me` values in `.env.example` are not usable passwords. The public repository and public site do not ship administrator credentials.
 
 ```bash
 npm run lint

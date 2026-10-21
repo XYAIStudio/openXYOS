@@ -11,7 +11,7 @@ openXYOS 是面向人机组织的开源操作系统。它提供多层级组织�
 前提：Node.js 20.19 或更高版本。
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/XYAIStudio/openXYOS.git
 cd openXYOS
 npm ci
 cp .env.example .env
@@ -22,7 +22,7 @@ Windows PowerShell 请使用 `Copy-Item .env.example .env`。启动前应在 `.e
 
 ## 演示与验证
 
-演示数据只适用于本地评估。设置 `SEED_DEMO_DATA=true` 并提供自定义演示密码后再执行种子数据命令；公开仓库不承诺内置管理员凭据。提交前执行：
+演示数据只适用于本地评估。设置 `SEED_DEMO_DATA=true`，并提供至少 12 位的自定义 `SEED_ADMIN_PASSWORD` 与 `SEED_DEMO_PASSWORD` 后再执行种子数据命令。`.env.example` 中的 `replace-me` 不能作为密码。公开仓库和公开页面都不提供内置管理员凭据。提交前执行：
 
 ```bash
 npm run lint

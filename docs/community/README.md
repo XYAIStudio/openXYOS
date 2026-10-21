@@ -38,7 +38,7 @@ npm run dev
 
 Windows PowerShell 使用 `Copy-Item .env.example .env`。启动前替换 `.env` 中的 `JWT_SECRET` 和 `COOKIE_SECRET`，不要提交该文件。浏览器打开 `http://localhost:5174`；API 默认在 `http://localhost:3000/api`。
 
-演示数据默认关闭。仅本地评估时设置 `SEED_DEMO_DATA=true`，并提供至少 12 位的自定义密码。公开仓库不内置管理员密码。不要把密钥、Cookie 或客户资料贴进 Issue、截图或源码。
+演示数据默认关闭。仅本地评估时设置 `SEED_DEMO_DATA=true`，并提供至少 12 位的自定义密码。公开仓库和公开首页都不内置、也不展示可用测试账号或密码。不要把密钥、Cookie 或客户资料贴进 Issue、截图或源码。企业微信群二维码失效时，请到 [Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12)。
 
 更完整的安装说明见[多语言简介与安装指南](../i18n/README.md)。
 
@@ -124,7 +124,7 @@ npm run dev
 
 On Windows PowerShell, use `Copy-Item .env.example .env`. Replace `JWT_SECRET` and `COOKIE_SECRET` in `.env` before startup. Never commit that file. Open `http://localhost:5174`; the API defaults to `http://localhost:3000/api`.
 
-Demo data is off by default. For local evaluation only, set `SEED_DEMO_DATA=true` and a custom password of at least 12 characters. The public repository does not ship an administrator password. Never paste keys, cookies, or customer material into issues, screenshots, or source files.
+Demo data is off by default. For local evaluation only, set `SEED_DEMO_DATA=true` and a custom password of at least 12 characters. The public repository and the public homepage do not ship or display a usable test account or password. Never paste keys, cookies, or customer material into issues, screenshots, or source files. If the WeCom group QR expires, use [Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12).
 
 See the [language index](../i18n/README.md) for fuller install notes.
 

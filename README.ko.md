@@ -16,6 +16,8 @@ openXYOS는 XYOS에서 단순화한, 인간–AI 조직을 위한 오픈 소스 
   <img src="docs/community/assets/xyai-founders-wecom-qr.png" width="240" alt="XYAI Founders WeCom QR" />
 </p>
 
+QR이 만료되면 예비 비밀번호를 요청하지 말고 [GitHub Discussions #12](https://github.com/XYAIStudio/openXYOS/discussions/12)를 사용하세요.
+
 ## 실행 범위
 
 로그인 후 12개 모듈을 제공합니다: 워크스페이스, 공지, 조직, 인적·AI 자원, 스킬/플러그인, 협업, 에이전트 스튜디오, 작업, 지식, 회고, 거버넌스, 설정.
